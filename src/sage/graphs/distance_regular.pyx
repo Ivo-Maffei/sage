@@ -280,6 +280,14 @@ def bilinear_form_graph(const int d, const int e, const int q):
     return G
 
 def alternating_form_graph_Sage(const int n, const int q):
+    r"""
+    %time alternating_form_graph_Sage(5,2)
+    CPU times: user 1min 51s, sys: 541 ms, total: 1min 51s
+    Wall time: 1min 51s
+    
+    roughly 2min for n=5, q=2
+
+    """
 
     skewSymmetricMatrices = VectorSpace(GF(q), (n*(n-1))/2 ) # represented as vectors
     
@@ -316,10 +324,71 @@ def alternating_form_graph_Sage(const int n, const int q):
     # now we have all matrices of rank 2
     
     edges = []
-    for v in skewSymmetricMatrices:    
+    for v in skewSymmetricMatrices:
+        v.set_immutable()
         for w in rank2Matrices:
             sig_check() # check for interrupts
-            edges.append(( v, (v+w) ))
+            u = v+w
+            u.set_immutable()
+            edges.append(( v, u ))
+
+    G = Graph(edges, format='list_of_edges')
+    G.name("Alternating form graph on (F_%d)^%d" %(q,n) )
+    return G
+
+def alternating_form_graph_Sage2(const int n, const int q):
+    r"""
+    %time alternating_form_graph_Sage2(5,2)
+    CPU times: user 1min 4s, sys: 448 ms, total: 1min 5s
+    Wall time: 1min 5s
+
+    roughly 1min for n=5, q=2
+    started 8:45 for n=6, q=2
+    """
+
+    skewSymmetricMatrices = iter(VectorSpace(GF(q), (n*(n-1))/2 )) # represented as vectors
+    
+    rank2Matrices = []
+    for v in skewSymmetricMatrices:
+        sig_check()
+        
+        # we need to convert v into a matrix
+
+        mat = [ [0 for i in range(n)] for j in range(n) ]
+        for i in range(n):
+            for j in range(n):
+                if i == j:
+                    mat[i][j] = 0
+                elif i < j:
+                    index = 0
+                    # skip all rows above i
+                    add = n-1
+                    for k in range(i):
+                        index += add
+                        add-=1
+                    # now get to jth element
+                    index += (j-1-i)
+
+                    # finally get the element
+                    mat[i][j] = v[index]
+                else : # i > j
+                    mat[i][j] = -mat[j][i]
+        
+        # finally check if mat is a rank2 matrix
+        if Matrix(GF(q),mat).rank() == 2:
+            rank2Matrices.append(v) # we append v as it is smaller than mat
+
+    # now we have all matrices of rank 2
+    
+    edges = []
+    skewSymmetricMatrices = iter(VectorSpace(GF(q), (n*(n-1))/2 )) # refresh empty iterator
+    for v in skewSymmetricMatrices:
+        v.set_immutable()
+        for w in rank2Matrices:
+            sig_check() # check for interrupts
+            u = v+w
+            u.set_immutable()
+            edges.append(( v, u ))
 
     G = Graph(edges, format='list_of_edges')
     G.name("Alternating form graph on (F_%d)^%d" %(q,n) )
@@ -346,6 +415,21 @@ def alternating_form_graph(const int n, const int q):
 
     TESTS::
 
+    """
+
+    r"""
+    speed tests:
+    sage: %time alternating_form_graph(6,2)
+    CPU times: user 1min 22s, sys: 2.6 s, total: 1min 24s
+    Wall time: 1min 25s
+    Alternating form graph on (F_2)^6: Graph on 32768 vertices
+
+    %time alternating_form_graph(5,2)
+    CPU times: user 441 ms, sys: 14.4 ms, total: 455 ms
+    Wall time: 461 ms
+
+    roughly 0.5s for n=5, q=2
+            1min for n=6, q=2
     """
     field = GF(q)
     fieldElems = _get_elems_of_GF(q)
