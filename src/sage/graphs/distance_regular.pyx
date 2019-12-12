@@ -314,7 +314,7 @@ def bilinear_form_graph(const int d, const int e, const int q):
 
 def bilinear_form_graph_Sage(const int d, const int e, const int q):
 
-    matricesOverq = MatrixSpace( GF(q), d, e, implementation='gap' )
+    matricesOverq = MatrixSpace( GF(q), d, e, implementation='m4ri' )
 
     rank1Matrices = []
     for m in matricesOverq:
