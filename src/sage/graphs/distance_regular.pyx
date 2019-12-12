@@ -1,4 +1,4 @@
-# cython: profile=True
+# cython: profile=False
 # -*- coding: utf-8 -*-
 r"""
 This module aims at constructing distance-regular graphs.
@@ -40,6 +40,7 @@ from sage.arith.misc import is_prime_power
 from sage.combinat.q_analogues import q_binomial
 from sage.combinat.integer_vector import IntegerVectors
 from sage.modules.free_module import VectorSpace
+from sage.matrix.matrix_space import MatrixSpace
 from sage.rings.finite_rings.finite_field_constructor import GF
 from sage.matrix.constructor import Matrix
 from sage.rings.rational cimport Rational
@@ -84,6 +85,38 @@ class _AllIntegerVectorsIter:
     def __len__(self):
         return self.q**(self.n)
 # end of class
+
+def testIterator(const int n, const int q):
+
+    import time
+    
+    count = 0
+    start = time.time()
+    for x in _AllIntegerVectorsIter(n*n,q):
+        count += 1
+    end = time.time()
+    print("integer vectors: num %d, time %.6f"%(count, end-start))
+
+    count = 0
+    start = time.time()
+    for x in VectorSpace(GF(q),n*n):
+        count += 1
+    end = time.time()
+    print("vector space: num %d, time %.6f"%(count, end-start))
+
+    count = 0
+    start = time.time()
+    for x in MatrixSpace(GF(2), n, n, implementation="m4ri"):
+        count += 1
+    end = time.time()
+    print("matrix space m4ri: num %d, time %.6f"%(count, end-start))
+
+    count = 0
+    start = time.time()
+    for x in MatrixSpace(GF(q), n, n, implementation="gap"):
+        count += 1
+    end = time.time()
+    print("matrix space gap: num %d, time %.6f"%(count, end-start))
 
 def _get_elems_of_GF( const int q):
     elems = []
@@ -279,127 +312,154 @@ def bilinear_form_graph(const int d, const int e, const int q):
     G.name("Bilinear form graphs over F_%d with parameters (%d,%d)" %(q,d,e) )
     return G
 
+def bilinear_form_graph_Sage(const int d, const int e, const int q):
+
+    matricesOverq = MatrixSpace( GF(q), d, e, implementation='gap' )
+
+    rank1Matrices = []
+    for m in matricesOverq:
+        sig_check()
+        if m.rank() == 1:
+            rank1Matrices.append(m)
+
+    edges = []
+    for m1 in matricesOverq:
+        m1.set_immutable()
+        for m2 in rank1Matrices:
+            sig_check() # this loop may take a long time, so check for interrupts
+            m3 = m1+m2
+            m3.set_immutable()
+            edges.append( ( m1, m3) )
+    
+    G = Graph(edges, format='list_of_edges')    
+    G.name("Bilinear form graphs over F_%d with parameters (%d,%d)" %(q,d,e) )
+    return G
+
 def alternating_form_graph_Sage(const int n, const int q):
     r"""
-    %time alternating_form_graph_Sage(5,2)
-    CPU times: user 1min 51s, sys: 541 ms, total: 1min 51s
-    Wall time: 1min 51s
-    
-    roughly 2min for n=5, q=2
 
     """
+    import time
 
-    skewSymmetricMatrices = VectorSpace(GF(q), (n*(n-1))/2 ) # represented as vectors
-    
+    def isSkewSymmetric( mat ):
+        for i in range(n):
+            if mat[i][i] != 0: return False
+            
+        for i in range(n):
+            for j in range(i+1,n):
+                if mat[i][j] != -mat[j][i]: return False
+
+        return True
+
+    matrices = MatrixSpace(GF(q), n, n, implementation="m4ri")
+
+    start = time.time()
+    skewSymmetricMatrices = []
+    for m in matrices:
+        if isSkewSymmetric(m):
+            skewSymmetricMatrices.append(m)
+    end = time.time()
+    print("creating skewSymmetricMatrices %.6fs"%(end-start))
+
+    start = time.time()
     rank2Matrices = []
-    for v in skewSymmetricMatrices:
+    for mat in skewSymmetricMatrices:
         sig_check()
         
-        # we need to convert v into a matrix
-
-        mat = [ [0 for i in range(n)] for j in range(n) ]
-        for i in range(n):
-            for j in range(n):
-                if i == j:
-                    mat[i][j] = 0
-                elif i < j:
-                    index = 0
-                    # skip all rows above i
-                    add = n-1
-                    for k in range(i):
-                        index += add
-                        add-=1
-                    # now get to jth element
-                    index += (j-1-i)
-
-                    # finally get the element
-                    mat[i][j] = v[index]
-                else : # i > j
-                    mat[i][j] = -mat[j][i]
-        
         # finally check if mat is a rank2 matrix
-        if Matrix(GF(q),mat).rank() == 2:
-            rank2Matrices.append(v) # we append v as it is smaller than mat
-
-    # now we have all matrices of rank 2
+        if mat.rank() == 2:
+            rank2Matrices.append(mat) # we append v as it is smaller than mat
+    end = time.time()
+    print("found all rank 2 matrices in %.6f"%(end-start))
     
+    # now we have all matrices of rank 2
+    start = time.time()
     edges = []
-    for v in skewSymmetricMatrices:
-        v.set_immutable()
-        for w in rank2Matrices:
+    for m1 in skewSymmetricMatrices:
+        m1.set_immutable()
+        for m2 in rank2Matrices:
             sig_check() # check for interrupts
-            u = v+w
-            u.set_immutable()
-            edges.append(( v, u ))
+            m3 = m1+m2
+            m3.set_immutable()
+            edges.append(( m1, m3 ))
 
+    end = time.time()
+    print("found all edges in %.6f"%(end-start))
+
+    start = time.time()
     G = Graph(edges, format='list_of_edges')
+    end = time.time()
+    print("constructed graph in %.6f"%(end-start))
+    
     G.name("Alternating form graph on (F_%d)^%d" %(q,n) )
     return G
 
 def alternating_form_graph_Sage2(const int n, const int q):
     r"""
-    %time alternating_form_graph_Sage2(5,2)
-    CPU times: user 1min 4s, sys: 448 ms, total: 1min 5s
-    Wall time: 1min 5s
 
-    roughly 1min for n=5, q=2
-    started 8:45 for n=6, q=2
     """
+    import time
 
-    skewSymmetricMatrices = iter(VectorSpace(GF(q), (n*(n-1))/2 )) # represented as vectors
-    
+    def isSkewSymmetric( mat ):
+        for i in range(n):
+            if mat[i][i] != 0: return False
+            
+        for i in range(n):
+            for j in range(i+1,n):
+                if mat[i][j] != -mat[j][i]: return False
+
+        return True
+
+    matrices = iter(MatrixSpace(GF(q), n, n, implementation="m4ri"))
+
+    start = time.time()
+    skewSymmetricMatrices = []
+    for m in matrices:
+        if isSkewSymmetric(m):
+            skewSymmetricMatrices.append(m)
+    end = time.time()
+    print("creating skewSymmetricMatrices %.6fs"%(end-start))
+
+    start = time.time()
     rank2Matrices = []
-    for v in skewSymmetricMatrices:
+    for mat in skewSymmetricMatrices:
         sig_check()
         
-        # we need to convert v into a matrix
-
-        mat = [ [0 for i in range(n)] for j in range(n) ]
-        for i in range(n):
-            for j in range(n):
-                if i == j:
-                    mat[i][j] = 0
-                elif i < j:
-                    index = 0
-                    # skip all rows above i
-                    add = n-1
-                    for k in range(i):
-                        index += add
-                        add-=1
-                    # now get to jth element
-                    index += (j-1-i)
-
-                    # finally get the element
-                    mat[i][j] = v[index]
-                else : # i > j
-                    mat[i][j] = -mat[j][i]
-        
         # finally check if mat is a rank2 matrix
-        if Matrix(GF(q),mat).rank() == 2:
-            rank2Matrices.append(v) # we append v as it is smaller than mat
-
-    # now we have all matrices of rank 2
+        if mat.rank() == 2:
+            rank2Matrices.append(mat) # we append v as it is smaller than mat
+    end = time.time()
+    print("found all rank 2 matrices in %.6f"%(end-start))
     
+    # now we have all matrices of rank 2
+    start = time.time()
     edges = []
-    skewSymmetricMatrices = iter(VectorSpace(GF(q), (n*(n-1))/2 )) # refresh empty iterator
-    for v in skewSymmetricMatrices:
-        v.set_immutable()
-        for w in rank2Matrices:
+    for m1 in skewSymmetricMatrices:
+        m1.set_immutable()
+        for m2 in rank2Matrices:
             sig_check() # check for interrupts
-            u = v+w
-            u.set_immutable()
-            edges.append(( v, u ))
+            m3 = m1+m2
+            m3.set_immutable()
+            edges.append(( m1, m3 ))
 
+    end = time.time()
+    print("found all edges in %.6f"%(end-start))
+
+    start = time.time()
     G = Graph(edges, format='list_of_edges')
+    end = time.time()
+    print("constructed graph in %.6f"%(end-start))
+    
     G.name("Alternating form graph on (F_%d)^%d" %(q,n) )
     return G
+      
 
 def alternating_form_graph(const int n, const int q):
     r"""
     Return the alternating form graph with the given parameters.
 
     This construct a graph whose vertices are all ``n``x``n`` skew symmetric
-    matrices over ``GF(q)``. 2 vertices are adjecent if and only if the
+    matrices over ``GF(q)`` with zero diagonal. 2 vertices are adjecent if and only if the
     difference of the 2 matrices has rank 2
 
     INPUT:
