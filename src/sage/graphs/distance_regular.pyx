@@ -93,13 +93,23 @@ def testIterator(const int n, const int q):
     count = 0
     start = time.time()
     for x in _AllIntegerVectorsIter(n*n,q):
+        sig_check()
         count += 1
     end = time.time()
     print("integer vectors: num %d, time %.6f"%(count, end-start))
 
     count = 0
     start = time.time()
+    for x in MatrixSpace(GF(q), n, n, implementation="meataxe"):
+        sig_check()
+        count += 1
+    end = time.time()
+    print("matrix space meataxe: num %d, time %.6f"%(count, end-start))
+
+    count = 0
+    start = time.time()
     for x in VectorSpace(GF(q),n*n):
+        sig_check()
         count += 1
     end = time.time()
     print("vector space: num %d, time %.6f"%(count, end-start))
@@ -107,6 +117,7 @@ def testIterator(const int n, const int q):
     count = 0
     start = time.time()
     for x in MatrixSpace(GF(2), n, n, implementation="m4ri"):
+        sig_check()
         count += 1
     end = time.time()
     print("matrix space m4ri: num %d, time %.6f"%(count, end-start))
@@ -114,6 +125,7 @@ def testIterator(const int n, const int q):
     count = 0
     start = time.time()
     for x in MatrixSpace(GF(q), n, n, implementation="gap"):
+        sig_check()
         count += 1
     end = time.time()
     print("matrix space gap: num %d, time %.6f"%(count, end-start))
@@ -314,7 +326,7 @@ def bilinear_form_graph(const int d, const int e, const int q):
 
 def bilinear_form_graph_Sage(const int d, const int e, const int q):
 
-    matricesOverq = MatrixSpace( GF(q), d, e, implementation='m4ri' )
+    matricesOverq = MatrixSpace( GF(q), d, e, implementation='meataxe' )
 
     rank1Matrices = []
     for m in matricesOverq:
