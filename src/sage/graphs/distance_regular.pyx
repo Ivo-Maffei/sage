@@ -303,28 +303,6 @@ def bilinear_form_graph(const int d, const int e, const int q):
     TESTS::
     
     """
-    matricesOverq = _AllIntegerVectorsIter( d*e, q )
-    fieldElems = _get_elems_of_GF(q)
-    sumTable = _get_sum_table(fieldElems)
-
-    rank1Matrices = []
-    for v in matricesOverq:
-        sig_check()
-        w =  _convert_vector_to_GF_q(v,fieldElems)
-        if Matrix(GF(q), w, nrows=d).rank() == 1:
-            rank1Matrices.append(v)
-
-    edges = []
-    for v in matricesOverq:
-        for w in rank1Matrices:
-            sig_check() # this loop may take a long time, so check for interrupts
-            edges.append( ( v, _add_vectors_over_q(sumTable,v,w) ) )
-    
-    G = Graph(edges, format='list_of_edges')    
-    G.name("Bilinear form graphs over F_%d with parameters (%d,%d)" %(q,d,e) )
-    return G
-
-def bilinear_form_graph_Sage(const int d, const int e, const int q):
 
     matricesOverq = MatrixSpace( GF(q), d, e, implementation='meataxe' )
 
