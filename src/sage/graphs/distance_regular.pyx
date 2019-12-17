@@ -341,7 +341,7 @@ def alternating_form_graph_Sage(const int n, const int q):
 
         return True
 
-    matrices = MatrixSpace(GF(q), n, n, implementation="m4ri")
+    matrices = MatrixSpace(GF(q), n, n, implementation="meataxe")
 
     start = time.time()
     skewSymmetricMatrices = []
@@ -400,7 +400,7 @@ def alternating_form_graph_Sage2(const int n, const int q):
 
         return True
 
-    matrices = iter(MatrixSpace(GF(q), n, n, implementation="m4ri"))
+    matrices = iter(MatrixSpace(GF(q), n, n, implementation="meataxe"))
 
     start = time.time()
     skewSymmetricMatrices = []
@@ -834,64 +834,67 @@ def double_Grassman(const int q, const int n, const int e):
 
 def local_intersection_array( G, v ):
     r"""
-    doesn't work
     v is a vertex of G.
     We build an "intersection array" using v
     the intersection array is then returned
-
-    we use a rather slow BFS (cython and not C)
+    we return an intersection array [None]
     """
 
     if v not in G:
         raise ValueError("the vertex given is not in the graph!")
 
     # use BFS to create dictionary of distances from v
-    cdef dict distances = dict(G.breadth_first_search(v, report_distance=True))
+    generator = G.breadth_first_search(v, report_distance=True)
+    #distances is a generator object
 
     # compute diameter according to the above
     cdef int diameter = 0
-    for v in distances:
-        if distances[v] > diameter:
-            diameter = distances[v]
+    cdef dict distances = dict()
+    for (v,d) in generator:
+        distances[v] = d
+        if d > diameter:
+            diameter = d
+    # now distances is a dictionary vertex -> distance from v
     
     # for i = 0 to diameter pick y at distance i from v
     # compute b_i and c_i for v,y
-    cdef list bs = []
-    cdef list cs = []
-    
-    for i in range(diameter+1):
-        sig_check()
-        y = v #initialise y in this scope
-        for w in distances:
-            if distances[w] == i:
-                y = w
-                break
-        # now d(v,y) = i
+    cdef list bs = [None]*(diameter+1)
+    cdef list cs = [None]*(diameter+1)
 
-        # b_i = n. neighbours of y at distance i+1 from v
-        # c_i = n. neighbours of y at distance i-1 from v
+    for w in distances:
+        sig_check()
+        i = distances[w]
+        
+        # b_i = n. neighbours of w at distance i+1 from v
+        # c_i = n. neighbours of w at distance i-1 from v
         bi = 0
         ci = 0
-        for w in G.neighbors(y):
-            if distances[w] == i+1:
+        for u in G.neighbors(w):
+            if distances[u] == i+1:
                 bi += 1
-            elif distances[w] == i-1:
+            elif distances[u] == i-1:
                 ci += 1
         # end for
 
-        bs.append(bi)
-        cs.append(ci)
+        if bs[i] == None:
+            bs[i] = bi
+        elif bs[i] != bi:#error
+            return [None]
+
+        if cs[i] == None:
+            cs[i] = ci
+        elif cs[i] != ci:
+            return [None]
+
     # end for
 
     assert( cs[0] == 0 and bs[diameter] == 0, "something is wrong with bfs")
 
     return (bs[:diameter] + cs[1:])
 
-def is_distance_regular_probabilistic( G, selection=0.4, proof=False ):
+def is_distance_regular_probabilistic( G, selection=0.3 ):
     r"""
     we pick selection*|V| vertices (roughly) at random in G and check if those are distance regular
-    if proof, then we return a dictionary { vertex -> local_intersection_array } s.t. the 2 
-    intersection arrays differ
     """
 
     if selection < 0 or selection > 1:
@@ -899,15 +902,16 @@ def is_distance_regular_probabilistic( G, selection=0.4, proof=False ):
             "selection must be a percentage of vertex of G to check")
 
     cdef int toCheck = G.order() * selection # floor or ceil?
-    cdef list vertices = [ G.random_vertex() for i in range(toCheck) ]
+    rand = G.random_vertex_iterator()
+    cdef list vertices = [ next(rand) for i in range(toCheck) ]
     
     cdef list intersection = local_intersection_array(G, vertices[0])
+    if intersection == [None]:
+        return False
     for v in vertices[1:]:
         array = local_intersection_array(G,v)
         if array != intersection:
-            if proof:
-                return { vertices[0]: intersection, v:array }
-            else: return False
+            return False
     # end for
 
     # if we get here, then all verties have the same local intersection array
