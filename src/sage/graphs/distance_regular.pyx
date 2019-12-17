@@ -382,67 +382,7 @@ def alternating_form_graph_Sage(const int n, const int q):
     print("constructed graph in %.6f"%(end-start))
     
     G.name("Alternating form graph on (F_%d)^%d" %(q,n) )
-    return G
-
-def alternating_form_graph_Sage2(const int n, const int q):
-    r"""
-
-    """
-    import time
-
-    def isSkewSymmetric( mat ):
-        for i in range(n):
-            if mat[i][i] != 0: return False
-            
-        for i in range(n):
-            for j in range(i+1,n):
-                if mat[i][j] != -mat[j][i]: return False
-
-        return True
-
-    matrices = iter(MatrixSpace(GF(q), n, n, implementation="meataxe"))
-
-    start = time.time()
-    skewSymmetricMatrices = []
-    for m in matrices:
-        if isSkewSymmetric(m):
-            skewSymmetricMatrices.append(m)
-    end = time.time()
-    print("creating skewSymmetricMatrices %.6fs"%(end-start))
-
-    start = time.time()
-    rank2Matrices = []
-    for mat in skewSymmetricMatrices:
-        sig_check()
-        
-        # finally check if mat is a rank2 matrix
-        if mat.rank() == 2:
-            rank2Matrices.append(mat) # we append v as it is smaller than mat
-    end = time.time()
-    print("found all rank 2 matrices in %.6f"%(end-start))
-    
-    # now we have all matrices of rank 2
-    start = time.time()
-    edges = []
-    for m1 in skewSymmetricMatrices:
-        m1.set_immutable()
-        for m2 in rank2Matrices:
-            sig_check() # check for interrupts
-            m3 = m1+m2
-            m3.set_immutable()
-            edges.append(( m1, m3 ))
-
-    end = time.time()
-    print("found all edges in %.6f"%(end-start))
-
-    start = time.time()
-    G = Graph(edges, format='list_of_edges')
-    end = time.time()
-    print("constructed graph in %.6f"%(end-start))
-    
-    G.name("Alternating form graph on (F_%d)^%d" %(q,n) )
-    return G
-      
+    return G    
 
 def alternating_form_graph(const int n, const int q):
     r"""
