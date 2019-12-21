@@ -215,6 +215,26 @@ def _codewords_have_different_support( vec1, vec2 ):
 ################################################################################
 # START CONSTRUCTIONS
 
+def IvanovIvanovFaradjev_graph():
+    r"""
+    requires gap and gap_packages
+
+    """
+
+    libgap.eval("SetInfoLevel(InfoWarning,0)") # silence #I warnings from GAP (without IO pkg)
+    libgap.LoadPackage("AtlasRep")
+
+    group = libgap.AtlasGroup("3.M22",libgap.NrMovedPoints,990)
+    
+    libgap.eval("SetInfoLevel(InfoWarning,1)") # restore #I warnings
+
+    graph = Graph(group.Orbit([1,22],libgap.OnSets), format='list_of_edges')
+    
+    graph.name("Ivanov-Ivanov-Faradjev Graph")
+        
+    return graph
+    
+
 def doubled_odd_graph( int n ):
     r"""
     let X = {1,2,..., 2n +1}
@@ -727,7 +747,7 @@ def truncated_Witt_graph():
 
 def doubly_truncated_Witt_graph():
 
-    G = trucated_Witt_graph()
+    G = truncated_Witt_graph()
     G.delete_vertices(filter( lambda x : x[0] == 1, G.vertices() ))
     G.relabel( lambda v: v[1:] )
 
