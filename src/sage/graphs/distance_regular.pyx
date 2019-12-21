@@ -40,12 +40,14 @@ from sage.arith.misc import is_prime_power
 from sage.combinat.q_analogues import q_binomial
 from sage.combinat.integer_vector import IntegerVectors
 from sage.modules.free_module import VectorSpace
+from sage.modules.free_module_element import vector
 from sage.matrix.matrix_space import MatrixSpace
 from sage.rings.finite_rings.finite_field_constructor import GF
 from sage.matrix.constructor import Matrix
 from sage.rings.rational cimport Rational
 from sage.libs.gap.libgap import libgap
 from sage.combinat.designs import design_catalog as Sage_Designs
+from sage.coding import codes_catalog as codes
 
 ################################################################################
 # UTILITY FUNCTIONS
@@ -666,6 +668,189 @@ def extended_ternary_Golay_code_graph():
     G.name("Ternary Extended Golay Code Graph")
     return G
 
+def extended_binary_Golay_code_graph():
+    r"""
+    the graph should be constructed as follow:
+    C = linear subspace of V (F_2 ^24) representing the code
+    vertices: V/C
+    edges: x+C is adjecent to y+C if the 2 cosets contain vertices of hamming dist. 1
+
+    how I do it:
+    find U < V s.t. U + C = V [in this case U  is span( e_1, e_2,...,e_{12} )]
+    then all x+C = u + C for some u in U (uniquely)
+    So we identify each coset x+C by u
+    to generate all 24 neighbours of x+C we do (x+e_i) + C [so we pick u and do u+e_i]
+    if i <= 12, then (x+e_i) is represented by u+e_i in U
+    if i > 12 then we need to find u'_i in U s.t. ei+C = u'_i +C so that (x+e_i) + C = (u+u'_i) + C
+    finding u'i is not impossible:
+    let A be a matrix whose columns are the basis of U followed by the basis of C
+    Then A*a = the weighted sum of A's columns by a
+    so A*a = e_i => e_i = A*(a[:12]++[0]*12) + A*([0]*12++a[12:]) where the first is in U and the second in C
+    Hece u'_i = A*(a[:12]++[0]*12). But the first 12 columns of A form I.
+    so u'_i = a[:12]++[0]*12 and a = A^{-1} * e_i
+
+    Hence the neighbours of x+C are (x+e_i)+C [i<=12] and (x+u'_i)+C 
+    So our graph will have a vertex u and edges (u,u+e_i) [i<=12] and (u, u+u'_i)
+    """
+
+    # e(i) creates the vector e_i
+    def e(const int i):
+        v = [0]*24
+        v[i-1] = 1
+        return vector(GF(2),v)
+    
+    V = VectorSpace(GF(2), 24)
+    U_basis = [ e(i) for i in range(1,13) ]
+    U = V.span(U_basis)
+
+    vertices = list(U)
+
+    #now we need to build A
+    #we first build A^T as it is easier to represent A as a list of rows
+    A = U_basis.copy() # A is a list of its first 12 columns
+    #now we need to append the basis of C
+
+    golayCode = codes.GolayCode(GF(2), extended=True)
+    C_basis = list( golayCode.generator_matrix() )
+    for v in C_basis:
+        A.append(v)
+
+    # now make A an actual matrix
+    A = Matrix(GF(2), A)
+    A = A.transpose()
+    
+    #finally we compute the inverse of A
+    Ainv = A.inverse()
+
+    #now we can compute u'_i
+    #we append them to U_basis, so that the resulting list is all vectors that we need
+    for i in range(13,25):
+        a = Ainv * e(i)
+        u_i = list(a[:12])+[0]*12 #this is u'_i
+        U_basis.append( vector(GF(2),u_i) )
+
+    #finally we can build our graph
+    edges = []
+    for u in vertices: #this represents x+C
+        ut = tuple(u)
+        for x in U_basis:
+            w = u+x #this is (x+e_i) +C
+            edges.append( (ut, tuple(w)) )
+
+    G = Graph(edges, format='list_of_edges')
+    G.name("Extended Binary Golay code graph")
+    return G
+
+def binary_Golay_code_graph():
+    r"""
+    construction as above
+    """
+
+    # e(i) creates the vector e_i
+    def e(const int i):
+        v = [0]*23
+        v[i-1] = 1
+        return vector(GF(2),v)
+    
+    V = VectorSpace(GF(2), 23)
+    U_basis = [ e(i) for i in range(1,12) ]
+    U = V.span(U_basis)
+
+    vertices = list(U)
+
+    #now we need to build A
+    #we first build A^T as it is easier to represent A as a list of rows
+    A = U_basis.copy() # A is a list of its first 11 columns
+    #now we need to append the basis of C
+
+    golayCode = codes.GolayCode(GF(2), extended=False)
+    C_basis = list( golayCode.generator_matrix() )
+    for v in C_basis:
+        A.append(v)
+
+    # now make A an actual matrix
+    A = Matrix(GF(2), A)
+    A = A.transpose()
+    
+    #finally we compute the inverse of A
+    Ainv = A.inverse()
+
+    #now we can compute u'_i
+    #we append them to U_basis, so that the resulting list is all vectors that we need
+    for i in range(12,24):
+        a = Ainv * e(i)
+        u_i = list(a[:11])+[0]*12 #this is u'_i
+        U_basis.append( vector(GF(2),u_i) )
+
+    #finally we can build our graph
+    edges = []
+    for u in vertices: #this represents x+C
+        ut = tuple(u)
+        for x in U_basis:
+            w = u+x #this is (x+e_i) +C
+            edges.append( (ut, tuple(w)) )
+
+    G = Graph(edges, format='list_of_edges')
+    G.name("Binary Golay code graph")
+    return G
+
+def trucated_binary_Golay_code_graph():
+    r"""
+    Construction as above.
+    This time the vector space is over n=22 instead of 23 and so we need to chop off the first
+    digit of the code
+    """
+
+    # e(i) creates the vector e_i
+    def e(const int i):
+        v = [0]*22
+        v[i-1] = 1
+        return vector(GF(2),v)
+    
+    V = VectorSpace(GF(2), 22)
+    U_basis = [ e(i) for i in range(1,11) ]
+    U = V.span(U_basis)
+
+    vertices = list(U)
+
+    #now we need to build A
+    #we first build A^T as it is easier to represent A as a list of rows
+    A = U_basis.copy() # A is a list of its first 10 columns
+    #now we need to append the basis of C
+
+    golayCode = codes.GolayCode(GF(2), extended=False)
+    C_basis = list( golayCode.generator_matrix() )
+    C_basis = list( map( lambda v : v[1:], C_basis) ) #truncate the code
+    for v in C_basis:
+        A.append(v)
+
+    # now make A an actual matrix
+    A = Matrix(GF(2), A)
+    A = A.transpose()
+    
+    #finally we compute the inverse of A
+    Ainv = A.inverse()
+
+    #now we can compute u'_i
+    #we append them to U_basis, so that the resulting list is all vectors that we need
+    for i in range(11,23):
+        a = Ainv * e(i)
+        u_i = list(a[:10])+[0]*12 #this is u'_i
+        U_basis.append( vector(GF(2),u_i) )
+
+    #finally we can build our graph
+    edges = []
+    for u in vertices: #this represents x+C
+        ut = tuple(u)
+        for x in U_basis:
+            w = u+x #this is (x+e_i) +C
+            edges.append( (ut, tuple(w)) )
+
+    G = Graph(edges, format='list_of_edges')
+    G.name("Truncated binary Golay code graph")
+    return G
+
+    
 def large_Witt_graph():
     r"""
     Return the large Witt graph.
