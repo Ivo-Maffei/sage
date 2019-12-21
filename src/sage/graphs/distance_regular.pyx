@@ -262,6 +262,8 @@ def polygon( int n ):
 def graph_3D42(const int q):
     r"""
     we build the graph $^3D_{4,2}(q)$. Those come from the groups $^3D_4(q)$
+
+    requires gap and gap_packages
     """
 
     if q>3:
@@ -718,10 +720,20 @@ def truncated_Witt_graph():
     # get large witt graph and remove all vertices which start with a 1
     G = large_Witt_graph()
     G.delete_vertices(filter( lambda x : x[0] == 1, G.vertices() ))
-    G.relabel( lambda v: v[1:24] )
+    G.relabel( lambda v: v[1:] )
 
     G.name("Truncated Witt graph")
     return G
+
+def doubly_truncated_Witt_graph():
+
+    G = trucated_Witt_graph()
+    G.delete_vertices(filter( lambda x : x[0] == 1, G.vertices() ))
+    G.relabel( lambda v: v[1:] )
+
+    G.name("Doubly Truncated Witt graph")
+    return G
+
 
 def Grassman( const int q, const int n, const int input_e ):
     r"""
