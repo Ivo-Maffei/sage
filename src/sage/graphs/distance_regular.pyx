@@ -668,79 +668,75 @@ def extended_ternary_Golay_code_graph():
     G.name("Ternary Extended Golay Code Graph")
     return G
 
+def coset_graph( list U_basis, list C_basis, const int q ):
+    n = len(U_basis[0])# dim V
+    F = GF(q) #base field
+
+    lambdas = [ x for x in F if x != 0 ]#non-zero elements of F
+    
+    def e(const int i):
+        v = [0]*n
+        v[i-1] = 1
+        return vector(F,v)
+
+    V = VectorSpace(F,n)
+    U = V.span(U_basis)
+
+    vertices = list(U)
+
+    # build our matrix A
+    A = U_basis.copy()
+    for c in C_basis:
+        A.append(c)
+
+    A = Matrix(F,A)
+    A = A.transpose()
+    #now A is done
+
+    Ainv = A.inverse()
+
+    ui = [] #list of P(e_i)
+    for i in range(n+1):
+        ei = e(i)
+        if ei in U_basis:
+            ui.append(ei)
+        else:
+            a = Ainv * ei
+            # get zero vector and sum a[i]u_i to it
+            v = [0]*n
+            v = vector(F,v)
+            for i in range(len(U_basis)):
+                v += a[i]*U_basis[i]
+            ui.append(v)
+
+    #now we are ready to build all the edges
+    edges = []
+    for v in vertices:
+        vt = tuple(v)
+        for x in ui:
+            for l in lambdas:
+                w = v+ l* x
+                edges.append( (vt, tuple(w)) )
+
+    G = Graph(edges, format='list_of_edges')
+    return G
+
 def extended_binary_Golay_code_graph():
-    r"""
-    the graph should be constructed as follow:
-    C = linear subspace of V (F_2 ^24) representing the code
-    vertices: V/C
-    edges: x+C is adjecent to y+C if the 2 cosets contain vertices of hamming dist. 1
-
-    how I do it:
-    find U < V s.t. U + C = V [in this case U  is span( e_1, e_2,...,e_{12} )]
-    then all x+C = u + C for some u in U (uniquely)
-    So we identify each coset x+C by u
-    to generate all 24 neighbours of x+C we do (x+e_i) + C [so we pick u and do u+e_i]
-    if i <= 12, then (x+e_i) is represented by u+e_i in U
-    if i > 12 then we need to find u'_i in U s.t. ei+C = u'_i +C so that (x+e_i) + C = (u+u'_i) + C
-    finding u'i is not impossible:
-    let A be a matrix whose columns are the basis of U followed by the basis of C
-    Then A*a = the weighted sum of A's columns by a
-    so A*a = e_i => e_i = A*(a[:12]++[0]*12) + A*([0]*12++a[12:]) where the first is in U and the second in C
-    Hece u'_i = A*(a[:12]++[0]*12). But the first 12 columns of A form I.
-    so u'_i = a[:12]++[0]*12 and a = A^{-1} * e_i
-
-    Hence the neighbours of x+C are (x+e_i)+C [i<=12] and (x+u'_i)+C 
-    So our graph will have a vertex u and edges (u,u+e_i) [i<=12] and (u, u+u'_i)
-    """
-
     # e(i) creates the vector e_i
     def e(const int i):
         v = [0]*24
         v[i-1] = 1
         return vector(GF(2),v)
-    
-    V = VectorSpace(GF(2), 24)
+
     U_basis = [ e(i) for i in range(1,13) ]
-    U = V.span(U_basis)
-
-    vertices = list(U)
-
-    #now we need to build A
-    #we first build A^T as it is easier to represent A as a list of rows
-    A = U_basis.copy() # A is a list of its first 12 columns
-    #now we need to append the basis of C
 
     golayCode = codes.GolayCode(GF(2), extended=True)
     C_basis = list( golayCode.generator_matrix() )
-    for v in C_basis:
-        A.append(v)
 
-    # now make A an actual matrix
-    A = Matrix(GF(2), A)
-    A = A.transpose()
-    
-    #finally we compute the inverse of A
-    Ainv = A.inverse()
-
-    #now we can compute u'_i
-    #we append them to U_basis, so that the resulting list is all vectors that we need
-    for i in range(13,25):
-        a = Ainv * e(i)
-        u_i = list(a[:12])+[0]*12 #this is u'_i
-        U_basis.append( vector(GF(2),u_i) )
-
-    #finally we can build our graph
-    edges = []
-    for u in vertices: #this represents x+C
-        ut = tuple(u)
-        for x in U_basis:
-            w = u+x #this is (x+e_i) +C
-            edges.append( (ut, tuple(w)) )
-
-    G = Graph(edges, format='list_of_edges')
+    G = coset_graph(U_basis,C_basis,2)
     G.name("Extended Binary Golay code graph")
     return G
-
+    
 def binary_Golay_code_graph():
     r"""
     construction as above
@@ -751,105 +747,182 @@ def binary_Golay_code_graph():
         v = [0]*23
         v[i-1] = 1
         return vector(GF(2),v)
-    
-    V = VectorSpace(GF(2), 23)
+
     U_basis = [ e(i) for i in range(1,12) ]
-    U = V.span(U_basis)
-
-    vertices = list(U)
-
-    #now we need to build A
-    #we first build A^T as it is easier to represent A as a list of rows
-    A = U_basis.copy() # A is a list of its first 11 columns
-    #now we need to append the basis of C
 
     golayCode = codes.GolayCode(GF(2), extended=False)
     C_basis = list( golayCode.generator_matrix() )
-    for v in C_basis:
-        A.append(v)
-
-    # now make A an actual matrix
-    A = Matrix(GF(2), A)
-    A = A.transpose()
-    
-    #finally we compute the inverse of A
-    Ainv = A.inverse()
-
-    #now we can compute u'_i
-    #we append them to U_basis, so that the resulting list is all vectors that we need
-    for i in range(12,24):
-        a = Ainv * e(i)
-        u_i = list(a[:11])+[0]*12 #this is u'_i
-        U_basis.append( vector(GF(2),u_i) )
-
-    #finally we can build our graph
-    edges = []
-    for u in vertices: #this represents x+C
-        ut = tuple(u)
-        for x in U_basis:
-            w = u+x #this is (x+e_i) +C
-            edges.append( (ut, tuple(w)) )
-
-    G = Graph(edges, format='list_of_edges')
+    G = coset_graph(U_basis, C_basis, 2)
     G.name("Binary Golay code graph")
     return G
 
-def trucated_binary_Golay_code_graph():
-    r"""
-    Construction as above.
-    This time the vector space is over n=22 instead of 23 and so we need to chop off the first
-    digit of the code
-    """
-
+def truncated_binary_Golay_code_graph():
     # e(i) creates the vector e_i
     def e(const int i):
         v = [0]*22
         v[i-1] = 1
         return vector(GF(2),v)
     
-    V = VectorSpace(GF(2), 22)
     U_basis = [ e(i) for i in range(1,11) ]
-    U = V.span(U_basis)
 
-    vertices = list(U)
-
-    #now we need to build A
-    #we first build A^T as it is easier to represent A as a list of rows
-    A = U_basis.copy() # A is a list of its first 10 columns
-    #now we need to append the basis of C
 
     golayCode = codes.GolayCode(GF(2), extended=False)
     C_basis = list( golayCode.generator_matrix() )
     C_basis = list( map( lambda v : v[1:], C_basis) ) #truncate the code
-    for v in C_basis:
-        A.append(v)
-
-    # now make A an actual matrix
-    A = Matrix(GF(2), A)
-    A = A.transpose()
     
-    #finally we compute the inverse of A
-    Ainv = A.inverse()
-
-    #now we can compute u'_i
-    #we append them to U_basis, so that the resulting list is all vectors that we need
-    for i in range(11,23):
-        a = Ainv * e(i)
-        u_i = list(a[:10])+[0]*12 #this is u'_i
-        U_basis.append( vector(GF(2),u_i) )
-
-    #finally we can build our graph
-    edges = []
-    for u in vertices: #this represents x+C
-        ut = tuple(u)
-        for x in U_basis:
-            w = u+x #this is (x+e_i) +C
-            edges.append( (ut, tuple(w)) )
-
-    G = Graph(edges, format='list_of_edges')
+    G = coset_graph(U_basis, C_basis, 2)
     G.name("Truncated binary Golay code graph")
     return G
 
+def doubly_truncated_binary_Golay_code_graph():
+    # e(i) creates the vector e_i
+    def e(const int i):
+        v = [0]*21
+        v[i-1] = 1
+        return vector(GF(2),v)
+    
+    U_basis = [ e(i) for i in range(1,10) ]
+
+
+    golayCode = codes.GolayCode(GF(2), extended=False)
+    C_basis = list( golayCode.generator_matrix() )
+    C_basis = list( map( lambda v : v[2:], C_basis) ) #truncate the code
+    
+    G = coset_graph(U_basis, C_basis, 2)
+    G.name("Doubly truncated binary Golay code graph")
+    return G
+
+def distance_3_doubly_truncated_Golay_code_graph():
+    r"""
+    we have the subgraph $\Gamma_3(v)$
+    """
+    G = doubly_truncated_binary_Golay_code_graph()
+    v = G.vertices()[0]
+    it = G.breadth_first_search(v, distance=3, report_distance=True)
+    vertices = []
+    for (w,d) in it:
+        if d == 3: vertices.append(w)
+
+    # now we have the vertices
+    edges =[] 
+    n = len(vertices)
+    for i in range(n):
+        a = vertices[i]
+        for j in range(i+1,n):
+            b = vertices[j]
+            if G.has_edge( (a,b) ): edges.append((a,b))
+
+    H = Graph(edges, format='list_of_edges')
+    return H
+
+def shortened_binary_Golay_code_graph():
+
+    def e(const int i):
+        v = [0]*22
+        v[i-1] = 1
+        return vector(GF(2), v)
+    
+    code = codes.GolayCode(GF(2), False)
+    C_basis = list( code.generator_matrix())
+
+    #now shortening
+    C_basis = C_basis[1:]
+    C_basis = list( map( lambda x: x[1:], C_basis) )
+
+    U_basis = [ e(i) for i in range(1,12) ]
+
+    G = coset_graph(U_basis, C_basis, 2)
+    G.name("Shortened binary Golay code")
+    return G
+
+def shortened_ternary_Golay_code_graph():
+    def e(const int i):
+        v = [0]*10
+        v[i-1] = 1
+        return vector(GF(3), v)
+    
+    code = codes.GolayCode(GF(3), False)
+    C_basis = list( code.generator_matrix())
+
+    #now shortening
+    C_basis = C_basis[1:]
+    C_basis = list( map( lambda x: x[1:], C_basis) )
+
+    U_basis = [ e(i) for i in range(1,6) ]
+
+    G = coset_graph(U_basis, C_basis, 3)
+    G.name("Shortened ternary Golay code")
+    return G
+
+def shortened_extended_ternary_Golay_code_graph():
+    def e(const int i):
+        v = [0]*11
+        v[i-1] = 1
+        return vector(GF(3), v)
+    
+    code = codes.GolayCode(GF(3), True)
+    C_basis = list( code.generator_matrix())
+
+    #now shortening
+    C_basis = C_basis[1:]
+    C_basis = list( map( lambda x: x[1:], C_basis) )
+
+    U_basis = [ e(i) for i in range(1,7) ]
+
+    G = coset_graph(U_basis, C_basis, 3)
+    G.name("Shortened extended ternary Golay code")
+    return G
+
+def shortened_00_11_binary_Golay_code_graph():
+    r"""
+    C = all words of binary Golay code that start with 00 or 11, and remove the first 2 positions
+    """
+
+    def e(const int i):
+        v = [0]*21
+        v[i-1] = 1
+        return vector(GF(2), v)
+    
+    code = codes.GolayCode(GF(2), False)
+    C_basis = list( code.generator_matrix())
+
+    #now shortening
+    v = C_basis[0] + C_basis[1] # v has 11 at the start
+    C_basis = C_basis[2:]
+    C_basis.append(v)
+    C_basis = list( map( lambda x: x[2:], C_basis) )
+
+    U_basis = [ e(i) for i in range(1,11) ]
+
+    G = coset_graph(U_basis, C_basis, 2)
+    G.name("Shortened 00 11 binary Golay code")
+    return G
+
+def shortened_000_111_extended_binary_Golay_code_graph():
+    r"""
+    C = all words of extended binary Golay code that start with 000 or 111, and remove the first 3 positions
+    """
+
+    def e(const int i):
+        v = [0]*21
+        v[i-1] = 1
+        return vector(GF(2), v)
+    
+    code = codes.GolayCode(GF(2))
+    C_basis = list( code.generator_matrix())
+
+    #now shortening
+    v = C_basis[0] + C_basis[1]+C_basis[2] # v has 111 at the start
+    C_basis = C_basis[3:]
+    C_basis.append(v)
+    C_basis = list( map( lambda x: x[3:], C_basis) )
+
+    U_basis = [ e(i) for i in range(1,13) if i != 10 ]#this time U_basis is a bit different
+
+    G = coset_graph(U_basis, C_basis, 2)
+    G.name("Shortened 000 111 extended binary Golay code")
+    return G
+    
     
 def large_Witt_graph():
     r"""
@@ -932,7 +1005,7 @@ def truncated_Witt_graph():
 
 def doubly_truncated_Witt_graph():
 
-    G = truncated_Witt_graph()
+    G = truncated_Witt_graph() 
     G.delete_vertices(filter( lambda x : x[0] == 1, G.vertices() ))
     G.relabel( lambda v: v[1:] )
 
@@ -1569,3 +1642,86 @@ def distance_regular_graph_with_classical_parameters( const int d,
 
     raise ValueError(
         "Can't find a distance-regular graph with the given parameters")
+
+
+def graph_with_intersection_array( list arr ):
+    def is_generalised_2d_gon(a):
+        d = len(a)/2
+        #c_1,...,c_{d-1} = 1
+        for i in range(1,d):
+            if a[d+i-1] != 1: return False
+
+        t = a[2d-1] -1 #c_d-1
+        
+        # b_0 = s(t+1)
+        if a[0] % (t+1) != 0: return False
+        s = a[0] / (t+1)
+        
+        #lamda = s - 1 = b_0 - b_1 - c_1
+        if s -1 != a[0] - a[1] - a[d]: return False
+
+        #b_i = st
+        for i in range(1,d):
+            if a[i] != s*t: return False
+
+        #otherwise we have it
+        return (s,t)
+        
+    n = len(arr)
+    if n % 2 != 0:
+        raise ValueError("array is not a valid intersection array")
+    d = n / 2
+
+    if d > 8:
+        #then it should be part of a family with unbounded diameter
+        #check if:
+        # classical parameters
+        # fold of (Johnson/half cube)
+        # a near polygon
+        pass
+    elif d == 8:
+        if arr = [3,2,2,2,2,1,1,1,1,1,1,2,2,2,2,3]:
+            return GraphGenerators.FosterGraph()
+        elif arr = [7,6,4,4,4,1,1,1,1,1,1,2,4,4,6,7]:
+            return IvanovIvanovFaradjev_graph():
+        else:
+            #family of graphs /other checks
+            pass
+        return "unknown"
+    elif d == 7:
+        if arr = [3,2,2,2,1,1,1,1,1,1,1,1,1,3]:
+            return GraphGenerators.BiggsSmithGraph()
+        elif arr = [22,21,20,16,6,2,1,1,2,6,16,20,21,22]:
+            return bipartite_double_graph(truncated_binary_Golay_code_graph())
+        elif arr = [23, 22, 21, 20, 3, 2, 1, 1, 2, 3, 20, 21, 22, 23]:
+            return bipartite_double_graph(binary_Golay_code_graph())
+        else:
+            #family of graphs
+            pass
+        return "unknown"
+    elif d == 6:
+        if arr = [21, 20, 16, 6, 2, 1, 1, 2, 6, 16, 20, 21]:
+            return shortened_00_11_binary_Golay_code_graph()
+        elif arr = [21, 20, 16, 9, 2, 1, 1, 2, 3, 16, 20, 21]:
+            return shortened_000_111_extended_binary_Golay_code_graph()
+        elif arr = [22, 21, 20, 3, 2, 1, 1, 2, 3, 20, 21, 22]:
+            return shortened_binary_Golay_code_graph()
+        else:
+            #could be generalside dodecagon
+            #could be general family
+            pass
+        return "unknown"
+    elif d == 5:
+        if arr = [3, 2, 1, 1, 1, 1, 1, 1, 2, 3]:
+            return GraphGenerators.DodecahedralGraph()
+        elif arr = [22, 20, 18, 2, 1, 1, 2, 9, 20, 22]:
+            return shortened_extended_ternary_Golay_code_graph()
+        elif arr = [7, 6, 6, 1, 1, 1, 1, 6, 6, 7]:
+            return bipartite_double_graph(GraphGenerators.HoffmanSingletonGraph())
+        elif arr = [10, 9, 8, 2, 1, 1, 2, 8, 9, 10]:
+            return bipartite_double_graph(GraphGenerators.SimsGewirtzGraph())
+        elif arr = [16, 15, 12, 4, 1, 1, 4, 12, 15, 16]:
+            return bipartite_double_graph(GraphGenerators.strongly_regular_graph(77,16,0))
+        elif arr = [22, 21, 16, 6, 1, 1, 6, 16, 21, 22]:
+            return bipartite_double_graph(GraphGenerators.HigmanSimsGraph())
+
