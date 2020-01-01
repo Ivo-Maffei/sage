@@ -217,6 +217,38 @@ def _codewords_have_different_support( vec1, vec2 ):
 ################################################################################
 # START CONSTRUCTIONS
 
+def generalised_hexagon( const int s, const int t):
+    cdef int q = 0
+    cdef int orderType = 0
+    if s == 1: # (1,q)
+        q = t
+    elif t == 1:# (q,1)
+        q = s
+        orderType = 1
+    elif s == t:# (q,q)
+        q = s
+        orderType = 2
+    elif s < t:# (q,q^3)
+        q = s
+        orderType = 3
+    else: # (q^3, q)
+        q = t
+        orderType = 4
+
+    if not is_prime_power(q):
+        raise ValueError("invalid input")
+
+    if orderType == 0:
+        #point graph of generalised 3-gon of order (q,q)
+        pass
+    elif orderType == 1:
+        # dual graph 
+        pass
+    pass
+
+    
+    
+
 def IvanovIvanovFaradjev_graph():
     r"""
     requires gap and gap_packages
@@ -1651,7 +1683,7 @@ def graph_with_intersection_array( list arr ):
         for i in range(1,d):
             if a[d+i-1] != 1: return False
 
-        t = a[2d-1] -1 #c_d-1
+        t = a[2*d-1] -1 #c_d-1
         
         # b_0 = s(t+1)
         if a[0] % (t+1) != 0: return False
@@ -1680,31 +1712,31 @@ def graph_with_intersection_array( list arr ):
         # a near polygon
         pass
     elif d == 8:
-        if arr = [3,2,2,2,2,1,1,1,1,1,1,2,2,2,2,3]:
+        if arr == [3,2,2,2,2,1,1,1,1,1,1,2,2,2,2,3]:
             return GraphGenerators.FosterGraph()
-        elif arr = [7,6,4,4,4,1,1,1,1,1,1,2,4,4,6,7]:
-            return IvanovIvanovFaradjev_graph():
+        elif arr == [7,6,4,4,4,1,1,1,1,1,1,2,4,4,6,7]:
+            return IvanovIvanovFaradjev_graph()
         else:
             #family of graphs /other checks
             pass
         return "unknown"
     elif d == 7:
-        if arr = [3,2,2,2,1,1,1,1,1,1,1,1,1,3]:
+        if arr == [3,2,2,2,1,1,1,1,1,1,1,1,1,3]:
             return GraphGenerators.BiggsSmithGraph()
-        elif arr = [22,21,20,16,6,2,1,1,2,6,16,20,21,22]:
+        elif arr == [22,21,20,16,6,2,1,1,2,6,16,20,21,22]:
             return bipartite_double_graph(truncated_binary_Golay_code_graph())
-        elif arr = [23, 22, 21, 20, 3, 2, 1, 1, 2, 3, 20, 21, 22, 23]:
+        elif arr == [23, 22, 21, 20, 3, 2, 1, 1, 2, 3, 20, 21, 22, 23]:
             return bipartite_double_graph(binary_Golay_code_graph())
         else:
             #family of graphs
             pass
         return "unknown"
     elif d == 6:
-        if arr = [21, 20, 16, 6, 2, 1, 1, 2, 6, 16, 20, 21]:
+        if arr == [21, 20, 16, 6, 2, 1, 1, 2, 6, 16, 20, 21]:
             return shortened_00_11_binary_Golay_code_graph()
-        elif arr = [21, 20, 16, 9, 2, 1, 1, 2, 3, 16, 20, 21]:
+        elif arr == [21, 20, 16, 9, 2, 1, 1, 2, 3, 16, 20, 21]:
             return shortened_000_111_extended_binary_Golay_code_graph()
-        elif arr = [22, 21, 20, 3, 2, 1, 1, 2, 3, 20, 21, 22]:
+        elif arr == [22, 21, 20, 3, 2, 1, 1, 2, 3, 20, 21, 22]:
             return shortened_binary_Golay_code_graph()
         else:
             #could be generalside dodecagon
@@ -1712,16 +1744,16 @@ def graph_with_intersection_array( list arr ):
             pass
         return "unknown"
     elif d == 5:
-        if arr = [3, 2, 1, 1, 1, 1, 1, 1, 2, 3]:
+        if arr == [3, 2, 1, 1, 1, 1, 1, 1, 2, 3]:
             return GraphGenerators.DodecahedralGraph()
-        elif arr = [22, 20, 18, 2, 1, 1, 2, 9, 20, 22]:
+        elif arr == [22, 20, 18, 2, 1, 1, 2, 9, 20, 22]:
             return shortened_extended_ternary_Golay_code_graph()
-        elif arr = [7, 6, 6, 1, 1, 1, 1, 6, 6, 7]:
+        elif arr == [7, 6, 6, 1, 1, 1, 1, 6, 6, 7]:
             return bipartite_double_graph(GraphGenerators.HoffmanSingletonGraph())
-        elif arr = [10, 9, 8, 2, 1, 1, 2, 8, 9, 10]:
+        elif arr == [10, 9, 8, 2, 1, 1, 2, 8, 9, 10]:
             return bipartite_double_graph(GraphGenerators.SimsGewirtzGraph())
-        elif arr = [16, 15, 12, 4, 1, 1, 4, 12, 15, 16]:
+        elif arr == [16, 15, 12, 4, 1, 1, 4, 12, 15, 16]:
             return bipartite_double_graph(GraphGenerators.strongly_regular_graph(77,16,0))
-        elif arr = [22, 21, 16, 6, 1, 1, 6, 16, 21, 22]:
+        elif arr == [22, 21, 16, 6, 1, 1, 6, 16, 21, 22]:
             return bipartite_double_graph(GraphGenerators.HigmanSimsGraph())
 
