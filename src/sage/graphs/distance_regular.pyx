@@ -51,124 +51,6 @@ from sage.coding import codes_catalog as codes
 
 ################################################################################
 # UTILITY FUNCTIONS
-
-#an iterator to iterate over all vectors of length n using the elements given
-class _AllIntegerVectorsIter:
-    def __init__(self, const int n, const int q ):
-        self.q = q
-        self.n = n
-
-    def __iter__(self):
-        self.start = True #this means to start fresh
-        return self
-
-    def __next__(self): # this is python 3
-        return self.next()
-
-    def next(self): # this is python 2
-        if self.start:
-            self.start = False
-            self.last = [0 for i in range(self.n) ]
-        else:
-            for i in range(self.n-1, -1, -1):
-                self.last[i] += 1
-                if self.last[i] != self.q:
-                    break
-                self.last[i] = 0
-            # now we increased self.last by 1
-
-            else: # we didn't break, so self.last is 0 vector
-                self.start = True
-                raise StopIteration
-
-        # both branches return self.last
-        return tuple(self.last)
-
-    def __len__(self):
-        return self.q**(self.n)
-# end of class
-
-def testIterator(const int n, const int q):
-
-    import time
-    
-    count = 0
-    start = time.time()
-    for x in _AllIntegerVectorsIter(n*n,q):
-        sig_check()
-        count += 1
-    end = time.time()
-    print("integer vectors: num %d, time %.6f"%(count, end-start))
-
-    count = 0
-    start = time.time()
-    for x in MatrixSpace(GF(q), n, n, implementation="meataxe"):
-        sig_check()
-        count += 1
-    end = time.time()
-    print("matrix space meataxe: num %d, time %.6f"%(count, end-start))
-
-    count = 0
-    start = time.time()
-    for x in VectorSpace(GF(q),n*n):
-        sig_check()
-        count += 1
-    end = time.time()
-    print("vector space: num %d, time %.6f"%(count, end-start))
-
-    count = 0
-    start = time.time()
-    for x in MatrixSpace(GF(2), n, n, implementation="m4ri"):
-        sig_check()
-        count += 1
-    end = time.time()
-    print("matrix space m4ri: num %d, time %.6f"%(count, end-start))
-
-    count = 0
-    start = time.time()
-    for x in MatrixSpace(GF(q), n, n, implementation="gap"):
-        sig_check()
-        count += 1
-    end = time.time()
-    print("matrix space gap: num %d, time %.6f"%(count, end-start))
-
-def _get_elems_of_GF( const int q):
-    elems = []
-
-    for x in GF(q):
-        elems.append(x)
-
-    return elems
-
-def _get_sum_table( elems ):
-    cdef int n = len(elems)
-
-    table = [ [0 for i in range(n)] for j in range(n) ]
-    for i in range(n):
-        for j in range(n):
-            x = elems[i]
-            y = elems[j]
-            z = x+y
-
-            k = 0
-            while elems[k] != z:
-                k += 1
-
-            table[i][j] = k
-
-    return table
-            
-def _convert_vector_to_GF_q(v,elems):
-    r"""
-    Applies the map ``i`` $\mapsto$ ``elems[i]`` to ``v``
-    """
-    
-    newVector = []
-    for i in v:
-        newVector.append(elems[i])
-        
-    return newVector
-
 def _add_vectors(v, w):
     cdef int n = len(v)
     
@@ -176,15 +58,6 @@ def _add_vectors(v, w):
     for i in range(n):
         result.append( v[i] + w[i] )
         
-    return tuple(result)
-
-def _add_vectors_over_q(table, v, w):
-    cdef int n = len(v)
-
-    result = []
-    for i in range(n):
-        result.append( table[v[i]][w[i]] )
-
     return tuple(result)
 
 def _hamming_weight( codeword ):
@@ -213,9 +86,119 @@ def _codewords_have_different_support( vec1, vec2 ):
             return False
     return True
     
+def group_2F4(const int q):
 
+    #we must have q = 2^{2m +1}
+    #and we need m
+    i = 2
+    m = 0
+    while i < q:
+        i = i*4
+        m = m +1
+
+    if i != q:
+        raise ValueError("invalid q")
+
+    if m == 0:
+        raise ValueError("use AtlasRep")
+
+    sigma = 2**m
+
+    X = Matrix(GF(q), 26,26)
+    X[1,2] = 1; X[1,3] = 1; X[1,5] = 1
+    X[2,3] = 1
+    X[3,5] = 1
+    X[4,6] = 1; X[4,8] = 1; X[4,10] = 1
+    X[6,8] = 1
+    X[8,10] = 1
+    X[9,11] = 1; X[9,15] = 1; X[9,17] = 1
+    X[11,12] = 1; X[11,15] = 1
+    X[13,15] = 1; X[13,17] = 1
+    X[14,16] = 1; X[14,18] = 1; X[14,21] = 1
+    X[15,17] = 1
+    X[16,18] = 1
+    X[18,21] = 1
+    X[20,22] = 1; X[20,23] = 1; X[20,24] = 1
+    X[22,23] = 1
+    X[23,24] = 1
+
+    N = Matrix(GF(q), 27,27)
+    N[0,1] = 1
+    N[1,9] = 1
+    N[2,4] = 1
+    N[3,2] = 1
+    N[4,14] = 1
+    N[5,0] = 1
+    N[6,11] = 1
+    N[7,6] = 1
+    N[8,7] = 1
+    N[9,20] = 1
+    N[10,3] = 1
+    N[11,16] = 1
+    N[12,12] = 1; N[12,13] = 1
+    N[13,13] = 1
+    N[14,22] = 1
+    N[15,8] = 1
+    N[16,19] = 1
+    N[17,5] = 1
+    N[18,15] = 1
+    N[19,18] = 1
+    N[20,25] = 1
+    N[21,10] = 1
+    N[22,23] = 1
+    N[23,21] = 1
+    N[24,17] = 1
+    N[25,24] = 1
+
+
+    m2 = X * N
+
+    epsilon = GF(q).multiplicative_generator()
+
+    H = Matrix(GF(q), 26,26)
+    for i in range(27):
+        if i in {1,4,14,20}:
+            H[i,i] = epsilon
+        elif i in {5,10,21,24}:
+            H[i,i] = epsilon**(-1)
+        elif i in {3,8,18,23}:
+            H[i,i] = epsilon**(-sigma + 1)
+        elif i in {2,6,16,22}:
+            H[i,i] = epsilon**(sigma - 1)
+        elif i == 9:
+            H[i,i] = epsilon**(sigma)
+        elif i == 11:
+            H[i,i] = epsilon**(-sigma + 2)
+        elif i == 15:
+            H[i,i] = epsilon**(sigma - 2)
+        elif i == 17:
+            H[i,i] = epsilon**(-sigma)
+        else:
+            H[i,i] = 1
+    #done H
+
+    #now H and m2 are generators of the group
+
+    return libgap.Group(m2,H)
+    
+    
 ################################################################################
 # START CONSTRUCTIONS
+
+def intersection_array_2d_gon(d, s, t):
+    b = [0]*d
+    c = [0]*d
+
+    b[0] = s*(t+1)
+    c[d-1] = t+1
+
+    for i in range(d-1):
+        c[i] = 1
+
+    for i in range(1,d):
+        b[i] = b[0] - s
+
+    return b + c
 
 def generalised_hexagon( const int s, const int t):
     cdef int q = 0
@@ -244,9 +227,52 @@ def generalised_hexagon( const int s, const int t):
     elif orderType == 1:
         # dual graph 
         pass
-    pass
+    elif orderType == 2:
+        # we use the group G2(q)
+        # if q == 2, then G2(2) is isomorphic to U3(3).2
+        if q == 2:
+            group = libgap.AtlasGroup("U3(3).2", libgap.NrMovedPoints, 63)
+            G = Graph( group.Orbit([1,19], libgap.OnSets), format='list_of_edges')
+            G.name("Generalised hexagon of order (%d,%d)"%(q,q))
+            return G
+        elif q == 3: #we don't have permutation rep
+            pass
+        else:
+            arr = intersection_array_2d_gon(3,s,t)
+            n = number_of_vertices_from_intersection_array(arr)
+            G = graph_from_permutation_group( libgap.AtlasGroup("G2(%d)"%q, libgap.NrMovedPoints, n), arr[0])
+            G.name("Generalised hexagon of order (%d,%d)"%(q,q))
+            return G
+        pass
+    elif orderType == 3:
+        pass
+    elif orderType == 4:
+        pass
+    pass    
 
-    
+
+def graph_from_permutation_group( group, order ):
+    r"""
+    construct graph whose automorphism group is "group"
+    we ensure the graph has order "order"
+    "group" should be a GAP group
+    we also require 1 to be in the graph
+    """
+
+    h = group.Stabilizer(1)
+    orbitIndex = 0
+    orbitLenghts = h.OrbitLengths()
+
+    # if we can't find the correct orbit, we can out of bound error
+    while orbitLenghts[orbitIndex] != order:
+        orbitIndex += 1
+
+    #now we found the correct orbit
+    v = h.Orbits()[orbitIndex][0] #pick an element of the orbit
+
+    G = Graph( group.Orbit( [1,v], libgap.OnSets), format='list_of_edges')
+
+    return G
     
 
 def IvanovIvanovFaradjev_graph():
@@ -381,65 +407,6 @@ def bilinear_form_graph(const int d, const int e, const int q):
     G.name("Bilinear form graphs over F_%d with parameters (%d,%d)" %(q,d,e) )
     return G
 
-def alternating_form_graph_Sage(const int n, const int q):
-    r"""
-
-    """
-    import time
-
-    def isSkewSymmetric( mat ):
-        for i in range(n):
-            if mat[i][i] != 0: return False
-            
-        for i in range(n):
-            for j in range(i+1,n):
-                if mat[i][j] != -mat[j][i]: return False
-
-        return True
-
-    matrices = MatrixSpace(GF(q), n, n, implementation="meataxe")
-
-    start = time.time()
-    skewSymmetricMatrices = []
-    for m in matrices:
-        if isSkewSymmetric(m):
-            skewSymmetricMatrices.append(m)
-    end = time.time()
-    print("creating skewSymmetricMatrices %.6fs"%(end-start))
-
-    start = time.time()
-    rank2Matrices = []
-    for mat in skewSymmetricMatrices:
-        sig_check()
-        
-        # finally check if mat is a rank2 matrix
-        if mat.rank() == 2:
-            rank2Matrices.append(mat) # we append v as it is smaller than mat
-    end = time.time()
-    print("found all rank 2 matrices in %.6f"%(end-start))
-    
-    # now we have all matrices of rank 2
-    start = time.time()
-    edges = []
-    for m1 in skewSymmetricMatrices:
-        m1.set_immutable()
-        for m2 in rank2Matrices:
-            sig_check() # check for interrupts
-            m3 = m1+m2
-            m3.set_immutable()
-            edges.append(( m1, m3 ))
-
-    end = time.time()
-    print("found all edges in %.6f"%(end-start))
-
-    start = time.time()
-    G = Graph(edges, format='list_of_edges')
-    end = time.time()
-    print("constructed graph in %.6f"%(end-start))
-    
-    G.name("Alternating form graph on (F_%d)^%d" %(q,n) )
-    return G    
-
 def alternating_form_graph(const int n, const int q):
     r"""
     Return the alternating form graph with the given parameters.
@@ -462,70 +429,55 @@ def alternating_form_graph(const int n, const int q):
     TESTS::
 
     """
+    #import time
 
-    r"""
-    speed tests:
-    sage: %time alternating_form_graph(6,2)
-    CPU times: user 1min 22s, sys: 2.6 s, total: 1min 24s
-    Wall time: 1min 25s
-    Alternating form graph on (F_2)^6: Graph on 32768 vertices
+    def symmetry(x): return -x
+    def diagonal(x): return 0
 
-    %time alternating_form_graph(5,2)
-    CPU times: user 441 ms, sys: 14.4 ms, total: 455 ms
-    Wall time: 461 ms
+    matrices = MatrixSpace(GF(q), n, n, implementation="meataxe")
 
-    roughly 0.5s for n=5, q=2
-            1min for n=6, q=2
-    """
-    field = GF(q)
-    fieldElems = _get_elems_of_GF(q)
-    sumTable = _get_sum_table(fieldElems)
+    #start = time.time()
+    skewSymmetricMatrices = matrices.symmetric_generator(symmetry, diagonal)
+    #end = time.time()
+    #print("creating skewSymmetricMatrices %.6fs"%(end-start))
 
-    # now fieldElems[i] + fieldElems[j] = fieldElems[sumTable[i][j]]
-
-    skewSymmetricMatrices = _AllIntegerVectorsIter( (n*(n-1))/2, q)
-    
+    #start = time.time()
     rank2Matrices = []
-    for v in skewSymmetricMatrices:
+    for mat in skewSymmetricMatrices:
         sig_check()
         
-        # we need to convert v into a matrix
-
-        mat = [ [0 for i in range(n)] for j in range(n) ]
-        for i in range(n):
-            for j in range(n):
-                if i == j:
-                    mat[i][j] = 0
-                elif i < j:
-                    index = 0
-                    # skip all rows above i
-                    add = n-1
-                    for k in range(i):
-                        index += add
-                        add-=1
-                    # now get to jth element
-                    index += (j-1-i)
-
-                    # finally get the element
-                    mat[i][j] = fieldElems[v[index]]
-                else : # i > j
-                    mat[i][j] = -mat[j][i]
-        
         # finally check if mat is a rank2 matrix
-        if Matrix(GF(q),mat).rank() == 2:
-            rank2Matrices.append(v) # we append v as it is smaller than mat
-
-    # now we have all matrices of rank 2
+        if mat.rank() == 2:
+            rank2Matrices.append(mat) # we append v as it is smaller than mat
+    #end = time.time()
+    #print("found all rank 2 matrices in %.6f"%(end-start))
     
+    #start = time.time()
+    skewSymmetricMatrices = matrices.symmetric_generator(symmetry, diagonal)
+    #end = time.time()
+    #print("refresh skewSymmetricMatrices [it's a generator] %.6fs"%(end-start))
+    
+    # now we have all matrices of rank 2
+    #start = time.time()
     edges = []
-    for v in skewSymmetricMatrices:    
-        for w in rank2Matrices:
+    for m1 in skewSymmetricMatrices:
+        m1.set_immutable()
+        for m2 in rank2Matrices:
             sig_check() # check for interrupts
-            edges.append(( v, _add_vectors_over_q(sumTable,v,w) ))
+            m3 = m1+m2
+            m3.set_immutable()
+            edges.append(( m1, m3 ))
 
+    #end = time.time()
+    #print("found all edges in %.6f"%(end-start))
+
+    #start = time.time()
     G = Graph(edges, format='list_of_edges')
+    #end = time.time()
+    #print("constructed graph in %.6f"%(end-start))
+    
     G.name("Alternating form graph on (F_%d)^%d" %(q,n) )
-    return G
+    return G    
 
 def hermitean_form_graph(const int n, const int q):
     r"""
@@ -554,6 +506,7 @@ def hermitean_form_graph(const int n, const int q):
     TESTS::
 
     """
+    MS = MatrixSpace(GF(q), n, n, implementation="meataxe")
     
     (b,k) = is_prime_power(q, True)
     if k == 0 or k % 2 != 0:
@@ -563,64 +516,31 @@ def hermitean_form_graph(const int n, const int q):
     r = b**(k/2)
     # so r^2 = b^k = q
 
-    FqElems= _get_elems_of_GF(q)
-    sumTableq = _get_sum_table(FqElems)
-    
-    FrElems = _get_elems_of_GF(r)
-    sumTabler = _get_sum_table(FrElems)
-    
-    # find all hermitean matrices
-    # we need the upper half and the diagonal
-    allUpperHalves = _AllIntegerVectorsIter( (n*(n-1))/2, q)
-    allDiagonals = _AllIntegerVectorsIter(n, r)
+    def symmetry(x): return x**r
+
+    hermiteanMatrices = MS.symmetric_generator(symmetry)
 
     rank1Matrices = []
-    for up in allUpperHalves:
-        # create a matrix using up and leave diagonal 0
-        mat = [ [0 for i in range(n)] for j in range(n) ]
+    for mat in hermiteanMatrices:
+        sig_check()
+        if mat.rank() == 1: rank1Matrices.append(mat)
 
-        for i in range(n):
-            for j in range(n):
-                # create mat[i][j]
-                if i == j:
-                    mat[i][j] = 0
-                elif i < j:
-                    index = 0
-                    # skip all rows above i
-                    add = n-1
-                    for k in range(i):
-                        index += add
-                        add-=1
-                    # now get to jth element
-                    index += (j-1-i)
-
-                    # finally get the element
-                    mat[i][j] = FqElems[up[index]]
-                else: # i > j
-                    mat[i][j] = (mat[j][i])**r
-
-        for diag in allDiagonals:
+    #refresh generatro
+    hermiteanMatrices = MS.symmetric_generator(symmetry)
+    edges = []
+    for mat in hermiteanMatrices:
+        mat.set_immutable()
+        for mat2 in rank1Matrices:
             sig_check()
 
-            # fix the diagonal
-            for i in range(n):
-                mat[i][i] = FrElems[diag[i]]
-                
-            # now mat is a matrix
-            if Matrix(GF(q), mat).rank() == 1:
-                rank1Matrices.append( (diag, up) ) # no need to store the whole matrix
+            mat3 = mat + mat2
+            mat3.set_immutable()
+            edges.append( (mat, mat3) )
 
-    edges = []
-    for up in allUpperHalves:
-        for diag in allDiagonals:
-            for (d,u) in rank1Matrices:
-                sig_check()
-                edges.append(  ( (diag,up), (_add_vectors_over_q(sumTabler,diag,d), _add_vectors_over_q(sumTableq,up,u)) )  )
-                
     G = Graph(edges, format='list_of_edges')
     G.name("Hermitean form graph on (F_%d)^%d" %(q,n) )
     return G
-
+        
 def halved_cube( int n ):
     r"""
     Return the graph $\frac 1 2 Q_n$.

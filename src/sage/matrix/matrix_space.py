@@ -1534,30 +1534,32 @@ class MatrixSpace(UniqueRepresentation, Parent):
                 base_elements.append( next(base_iter) )
         else:
             #In the finite case, we do a similar thing except that
-            #we can iterate over all integer vectors of the correct length
             #Moreover, instead of checking if the diagonal is correct after creating the vector
             #we can select all possible diagonal elements a priori
             order = base_ring.order()
             base_elements = list(base_ring)
             diagonal_elements = [ x for x in base_elements if g(x) == x ]
-            for iv2 in sage.combinat.integer_vector.IntegerVectors(length=entries_in_upper_half, max_part=(order-1)):
-                for dia in sage.combinat.integer_vector.IntegerVectors(length=nrows, max_part=(order-1)):
-                    iv = iv2.clone() # iv is going to be changed within the next loop, so we keep a copy iv2
-                    #construct upper half matrix
-                    matrix_entries = [] #entries of matrix with lower half 0
-                    length_of_row = nrows-1
-                    for r in range(nrows):
-                        zeros = [0]*(nrows - length_of_row - 1)
-                        row = zeros + [base_elements[dia[r]]] + [base_elements[i] for i in iv[:length_of_row]]
-                        matrix_entries.extend(row)
-                        
-                        iv = iv[length_of_row:]
-                        length_of_row -= 1
-
-                    M = self(entries=matrix_entries)
-                    #make M symmetric
-                    make_symmetric(M)
-                    yield M
+            number_diagonal_elements = len(diagonal_elements)
+            for weight1 in range((order-1)*entries_in_upper_half+1):
+                for iv2 in sage.combinat.integer_vector.IntegerVectors(weight1, entries_in_upper_half, max_part=(order-1)):
+                    for weight2 in range((number_diagonal_elements-1)*nrows+1):
+                        for dia in sage.combinat.integer_vector.IntegerVectors(weight2, nrows, max_part=(number_diagonal_elements-1)):
+                            iv = iv2.clone() # iv is going to be changed within the next loop, so we keep a copy iv2
+                            #construct upper half matrix
+                            matrix_entries = [] #entries of matrix with lower half 0
+                            length_of_row = nrows-1
+                            for r in range(nrows):
+                                zeros = [0]*(nrows - length_of_row - 1)
+                                row = zeros + [diagonal_elements[dia[r]]] + [base_elements[i] for i in iv[:length_of_row]]
+                                matrix_entries.extend(row)
+                            
+                                iv = iv[length_of_row:]
+                                length_of_row -= 1
+                            
+                            M = self(entries=matrix_entries)
+                            #make M symmetric
+                            make_symmetric(M)
+                            yield M
 
     def __getitem__(self, x):
         """
