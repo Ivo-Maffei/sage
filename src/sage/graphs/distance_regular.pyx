@@ -45,6 +45,7 @@ from sage.matrix.matrix_space import MatrixSpace
 from sage.rings.finite_rings.finite_field_constructor import GF
 from sage.matrix.constructor import Matrix
 from sage.rings.rational cimport Rational
+from sage.rings.complex_field import ComplexField
 from sage.libs.gap.libgap import libgap
 from sage.combinat.designs import design_catalog as Sage_Designs
 from sage.coding import codes_catalog as codes
@@ -184,6 +185,136 @@ def group_2F4(const int q):
     
 ################################################################################
 # START CONSTRUCTIONS
+
+def weird_graph():
+
+    CC = ComplexField(4096)
+
+    e = CC('e')
+    pi = CC('pi')
+    I = CC('i')
+    
+    V= VectorSpace(GF(4), 6)
+    z2 = GF(4)('z2') # GF(4) = {0,1,z2, z2+1}
+
+    W = V.span( [(0,0,1,1,1,1), (0,1,0,1,z2,z2+1), (1,0,0,1,z2+1,z2)] )
+    # we only need the 45 vectors with 2 zero entries
+    # we also embed everything into CC
+
+    K = []
+    for v in W:
+
+        #check zero entries
+        zeros = 0
+        for x in v:
+            if x == 0:
+                zeros += 1
+
+        if zeros == 2:
+            #send to CC and in K
+            w = CC(e**(2/3* I * pi) )# image of z2
+            #w^2 is image of z2+1
+
+            vv = [] #new vector
+            for x in v:
+                if x == z2:
+                    vv.append(w)
+                elif x == z2+1:
+                    vv.append(w**2)
+                else:
+                    vv.append( CC(x) )
+
+            #now vv is the new vector in CC
+            vv = vector( CC, vv)
+            K.append(vv)
+            
+    #here K is the vectors we need and also in CC
+
+    #we need to add other vectors
+    for i in range(6):
+
+        #create e_i
+        ei = [0]*6
+        ei[i] = 1
+        ei = vector(CC,ei)
+
+        K.append( 2*ei )
+        K.append( 2*w*ei )
+        K.append( 2*w**2*ei )
+
+    #now K is all the 63 vertices
+
+    if w*w**2 != 1: print("err w^3 != 1")
+    if w**2 + w != -1: print("err w^2+w+1 != 0")
+    if w.conjugate != w**2: print("err \\bar w != w^2")
+    if (w**2).conjugate != w: print("err \\bar w^2 != w")
+
+    def has_edge(u,v):
+        com = 0
+        for i in range(6):
+            com += u[i].conjugate() * v[i]
+
+        if com == 2:
+            return True
+        return False
+
+    
+    G = Graph()
+    
+    length = len(K)
+    for i in range(length):
+        K[i].set_immutable()
+        for j in range(i+1, length):
+            if has_edge(K[i], K[j]):
+                K[j].set_immutable()
+                G.add_edge( (K[i], K[j]) )
+
+    G.name("boh")
+    return G
+
+
+def Foster_graph_3S6():
+
+    a = libgap.eval("(2,6)(3,5)(4,11)(7,17)(8,16)(9,14)(13,22)(15,25)(18,29)(19,28)(20,21)(24,30)(26,35)(27,33)(31,39)(34,38)(36,43)(37,40)(42,44)")
+    b = libgap.eval("(1,2,7,12,4)(3,8,18,20,10)(5,9,19,21,11)(6,13,17,26,15)(14,23,28,31,24)(16,22,29,36,27)(25,32,35,42,34)(30,37,39,44,38)(33,40,43,45,41)")
+    group = libgap.Group(a,b)
+
+    G = Graph(group.Orbit( [1,7], libgap.OnSets), format='list_of_edges')
+    G.name("Foster graph for 3.Sym(6) graph")
+
+    return G
+
+def J2_graph():
+
+    group = libgap.AtlasGroup("J2", libgap.NrMovedPoints, 315)
+    G = Graph( group.Orbit([1,9], libgap.OnSets), format='list_of_edges')
+    G.name("J_2 graph")
+    return G
+    
+
+def Coxeter_graph():
+    #construct Fano plane
+    points = [ i for i in range(7) ]
+    lines = [ frozenset({0,1,2}), frozenset({0,4,5}), frozenset({0,3,6}), frozenset({1,4,6}), frozenset({1,3,5}), frozenset({2,3,4}), frozenset({2,5,6}) ]
+
+    vertices = []
+    for p in points:
+        for l in lines:
+            if p not in l:            
+                vertices.append( (p,l) )
+
+    G = Graph()
+    pointsSet = set(points)
+    for (p,l) in vertices:
+        for (q,m) in vertices:
+            s = set(l.union(m))
+            s.add(p)
+            s.add(q)
+            if s == pointsSet:
+                G.add_edge( ((p,l), (q,m)) )
+
+    G.name("Coxeter graph")
+    return G
 
 def intersection_array_2d_gon(d, s, t):
     b = [0]*d
