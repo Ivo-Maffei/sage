@@ -186,6 +186,29 @@ def group_2F4(const int q):
 ################################################################################
 # START CONSTRUCTIONS
 
+def extract_lines( G, s, t):
+    r"""given the point graph of a generalised 2d-gon of order (s,t) we
+    extract the lines from G and return it
+
+    all lines lies on s+1 points
+    all points are incident to t+1 lines
+
+    a line is a clique of size s+1
+    a maximal clique of size s+1 must be a line (since all points are on at least 1 line)
+
+    we know that number of points |V(G)|, hence the number of lines is |V(G)|*(t+1)/(s+1)
+
+    NOOOO above is fine, but we should do this way:
+    Let (x,y) be an edge,
+    then {x,y}^bottom^bottom is a singular line (we want singular lines)
+    we define x^bottom = neighbours of x and x
+              S^bottom = intersection of x^bottom for all x in S
+    """
+    pass
+    
+
+    
+
 def weird_graph():
 
     CC = ComplexField(4096)
