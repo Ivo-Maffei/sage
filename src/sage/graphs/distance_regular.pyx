@@ -49,6 +49,7 @@ from sage.rings.complex_field import ComplexField
 from sage.libs.gap.libgap import libgap
 from sage.combinat.designs import design_catalog as Sage_Designs
 from sage.coding import codes_catalog as codes
+from sage.graphs.strongly_regular_db import strongly_regular_graph
 
 ################################################################################
 # UTILITY FUNCTIONS
@@ -123,7 +124,7 @@ def group_2F4(const int q):
     X[22,23] = 1
     X[23,24] = 1
 
-    N = Matrix(GF(q), 27,27)
+    N = Matrix(GF(q), 26,26)
     N[0,1] = 1
     N[1,9] = 1
     N[2,4] = 1
@@ -157,7 +158,7 @@ def group_2F4(const int q):
     epsilon = GF(q).multiplicative_generator()
 
     H = Matrix(GF(q), 26,26)
-    for i in range(27):
+    for i in range(26):
         if i in {1,4,14,20}:
             H[i,i] = epsilon
         elif i in {5,10,21,24}:
@@ -180,12 +181,54 @@ def group_2F4(const int q):
 
     #now H and m2 are generators of the group
 
-    return libgap.Group(m2,H)
+    return libgap.Group(m2,H)#error
     
     
 ################################################################################
 # START CONSTRUCTIONS
 
+def generalised_octagon(s,t):
+    cdef int q = 0
+    cdef int orderType = 0
+    if s == 1:# (1,q)
+        q = t
+    elif t == 1:# (q,1)
+        q = s
+        orderType = 1
+    elif s < t:# (q,q^2)
+        q = s
+        orderType = 2
+    else: #(q^2,q)
+        q = t
+        orderType = 1
+
+    if orderType == 0:
+        H = strongly_regular_graph((q+1)*(q*q+1),q*(q+1),q-1,q+1)
+        # above is pointgraph of generalised quadrangle (q,q)
+        lines = extract_lines(H,q,q)
+        points = list(H.vertices())
+        #points and lines make the quadrangle
+
+        edges = []
+        for p in points:
+            for l in lines:
+                if p in l:
+                    edges.append( (p,l) )
+
+        G = Graph(edges, format='list_of_edges')
+        G.name("Generalised octagon of order (1,%d)"%q)
+        return G
+        
+    elif orderType == 1:
+        #dual
+        H = generalised_octagon(t,s)
+        G = line_graph_generalised_polygon(H,t,s)
+        G.name("Generalised octagon of order(%d,%d)"%(s,t))
+        return G
+    else:
+        pass
+    
+    
 def extract_lines( G, s, t):
     r"""given the point graph of a generalised 2d-gon of order (s,t) we
     extract the lines from G and return it
@@ -204,18 +247,153 @@ def extract_lines( G, s, t):
     we define x^bottom = neighbours of x and x
               S^bottom = intersection of x^bottom for all x in S
     """
-    pass
+
+    numLines = (G.order() * (t+1)) / (s+1)
+
+    lines = []
+    edges = set(G.edges())
+    
+    while edges :
+        (x,y,w) = edges.pop()
+
+        #compute line
+        bottomX = set(G.neighbors(x,closed=True))
+        bottomY = set(G.neighbors(y,closed=True))
+        bottom1 = bottomX.intersection(bottomY)
+
+        b = bottom1.pop()
+        bottom2 = frozenset(G.neighbors(b,closed=True))
+        for v in bottom1:
+            s = frozenset(G.neighbors(v,closed=True))
+            bottom2 = bottom2.intersection(s)
+
+        #now bottom2 is a line
+        lines.append(bottom2)
+        
+        #remove pointless edges
+        for u in bottom2:
+            for v in bottom2:
+                try :
+                    edges.remove( (u,v,None) )
+                except KeyError:
+                    pass #ignore this
+                
+    #loop to next edge
+
+    return lines
+
+def intersection_array_2d_gon(d, s, t):
+    b = [0]*d
+    c = [0]*d
+
+    b[0] = s*(t+1)
+    c[d-1] = t+1
+
+    for i in range(d-1):
+        c[i] = 1
+
+    for i in range(1,d):
+        b[i] = b[0] - s
+
+    return b + c
+
+def line_graph_generalised_polygon(H, s,t):
+    r"""
+    Given the point graph H of a generalised n-gon of order (s,t)
+    it returns the point graph of a generalised n-gon of order (t,s)
+    """
+    lines = extract_lines(H,s,t)
+
+    edges = []
+    n = len(lines)
+    for i in range(n):
+        l1 = lines[i]
+        for j in range(i+1,n):
+            l2 = lines[j]
+            if l1.intersection(l2) :
+                edges.append( (l1,l2) )
+            
+    G = Graph(edges, format='list_of_edges')
+    return G
     
 
+def generalised_hexagon( const int s, const int t):
+    cdef int q = 0
+    cdef int orderType = 0
+    if s == 1: # (1,q)
+        q = t
+    elif t == 1:# (q,1)
+        q = s
+        orderType = 1
+    elif s == t:# (q,q)
+        q = s
+        orderType = 2
+    elif s < t:# (q,q^3)
+        q = s
+        orderType = 3
+    else: # (q^3, q)
+        q = t
+        orderType = 1
+
+    if not is_prime_power(q):
+        raise ValueError("invalid input")
+
+    if orderType == 0:
+        #incident graph of generalised 3-gon of order (q,q)
+        V = VectorSpace(GF(q),3) #generalised triangle
+        points = list(V.subspaces(1))
+        lines = list(V.subspaces(2))
+
+        edges = []
+        for p in points:
+            pb = p.basis_matrix()
+            for l in lines:
+                if p.is_subspace(l):
+                    edges.append( (pb, l.basis_matrix()) )
+
+        G = Graph(edges, format='list_of_edges')
+        G.name("Generalised hexagon of order (1,%d)"%q)
+        return G#G.edges() gives problems
+        
+    elif orderType == 1:
+        # "dual" graph 
+        H = generalised_hexagon(t,s)
+        G = line_graph_generalised_polygon(H,t,s)
+        G.name("Generalised hexagon of order(%d,%d)"%(s,t))
+        return G
+        
+    elif orderType == 2:
+        # we use the group G2(q)
+        # if q == 2, then G2(2) is isomorphic to U3(3).2
+        if q == 2:
+            group = libgap.AtlasGroup("U3(3).2", libgap.NrMovedPoints, 63)
+            G = Graph( group.Orbit([1,19], libgap.OnSets), format='list_of_edges')
+            G.name("Generalised hexagon of order (%d,%d)"%(q,q))
+            return G
+        elif q == 3: #we don't have permutation rep
+            pass
+        else:
+            arr = intersection_array_2d_gon(3,s,t)
+            n = number_of_vertices_from_intersection_array(arr)
+            G = graph_from_permutation_group( libgap.AtlasGroup("G2(%d)"%q, libgap.NrMovedPoints, n), arr[0])
+            G.name("Generalised hexagon of order (%d,%d)"%(q,q))
+            return G
+        pass
+    elif orderType == 3:
+        pass
+    pass
     
 
 def weird_graph():
 
-    CC = ComplexField(4096)
+    CC = ComplexField(1024)
 
     e = CC('e')
     pi = CC('pi')
     I = CC('i')
+    w = CC(e**(2* I * pi / 3) )# primitive third root of unity
+    print( "w is ")
+    print(w)
     
     V= VectorSpace(GF(4), 6)
     z2 = GF(4)('z2') # GF(4) = {0,1,z2, z2+1}
@@ -235,9 +413,9 @@ def weird_graph():
 
         if zeros == 2:
             #send to CC and in K
-            w = CC(e**(2/3* I * pi) )# image of z2
-            #w^2 is image of z2+1
-
+            #z2 -> w
+            #z2+1 -> w^2
+            
             vv = [] #new vector
             for x in v:
                 if x == z2:
@@ -337,72 +515,7 @@ def Coxeter_graph():
                 G.add_edge( ((p,l), (q,m)) )
 
     G.name("Coxeter graph")
-    return G
-
-def intersection_array_2d_gon(d, s, t):
-    b = [0]*d
-    c = [0]*d
-
-    b[0] = s*(t+1)
-    c[d-1] = t+1
-
-    for i in range(d-1):
-        c[i] = 1
-
-    for i in range(1,d):
-        b[i] = b[0] - s
-
-    return b + c
-
-def generalised_hexagon( const int s, const int t):
-    cdef int q = 0
-    cdef int orderType = 0
-    if s == 1: # (1,q)
-        q = t
-    elif t == 1:# (q,1)
-        q = s
-        orderType = 1
-    elif s == t:# (q,q)
-        q = s
-        orderType = 2
-    elif s < t:# (q,q^3)
-        q = s
-        orderType = 3
-    else: # (q^3, q)
-        q = t
-        orderType = 4
-
-    if not is_prime_power(q):
-        raise ValueError("invalid input")
-
-    if orderType == 0:
-        #point graph of generalised 3-gon of order (q,q)
-        pass
-    elif orderType == 1:
-        # dual graph 
-        pass
-    elif orderType == 2:
-        # we use the group G2(q)
-        # if q == 2, then G2(2) is isomorphic to U3(3).2
-        if q == 2:
-            group = libgap.AtlasGroup("U3(3).2", libgap.NrMovedPoints, 63)
-            G = Graph( group.Orbit([1,19], libgap.OnSets), format='list_of_edges')
-            G.name("Generalised hexagon of order (%d,%d)"%(q,q))
-            return G
-        elif q == 3: #we don't have permutation rep
-            pass
-        else:
-            arr = intersection_array_2d_gon(3,s,t)
-            n = number_of_vertices_from_intersection_array(arr)
-            G = graph_from_permutation_group( libgap.AtlasGroup("G2(%d)"%q, libgap.NrMovedPoints, n), arr[0])
-            G.name("Generalised hexagon of order (%d,%d)"%(q,q))
-            return G
-        pass
-    elif orderType == 3:
-        pass
-    elif orderType == 4:
-        pass
-    pass    
+    return G    
 
 
 def graph_from_permutation_group( group, order ):
