@@ -89,10 +89,10 @@ def _codewords_have_different_support( vec1, vec2 ):
     return True
     
 def group_2F4(const int q):
-
     #we must have q = 2^{2m +1}
     #and we need m
     i = 2
+
     m = 0
     while i < q:
         i = i*4
@@ -104,84 +104,110 @@ def group_2F4(const int q):
     if m == 0:
         raise ValueError("use AtlasRep")
 
-    sigma = 2**m
+    #get some constants
+    libgap.eval("q := "+str(q)+";")
+    libgap.eval("F := GF(q);")
+    libgap.eval("s := 2^"+str(m)+";")
+    libgap.eval("o := One(F);")
+    libgap.eval("ep := PrimitiveRoot(F);")
 
-    X = Matrix(GF(q), 26,26)
-    X[1,2] = 1; X[1,3] = 1; X[1,5] = 1
-    X[2,3] = 1
-    X[3,5] = 1
-    X[4,6] = 1; X[4,8] = 1; X[4,10] = 1
-    X[6,8] = 1
-    X[8,10] = 1
-    X[9,11] = 1; X[9,15] = 1; X[9,17] = 1
-    X[11,12] = 1; X[11,15] = 1
-    X[13,15] = 1; X[13,17] = 1
-    X[14,16] = 1; X[14,18] = 1; X[14,21] = 1
-    X[15,17] = 1
-    X[16,18] = 1
-    X[18,21] = 1
-    X[20,22] = 1; X[20,23] = 1; X[20,24] = 1
-    X[22,23] = 1
-    X[23,24] = 1
+    #matrix x
+    libgap.eval("x := NullMat(26,26,F);")
+    libgap.eval("x[2,3]:=o;")
+    libgap.eval("x[2,4]:=o;")
+    libgap.eval("x[2,6]:=o;")
+    libgap.eval("x[3,4]:=o;")
+    libgap.eval("x[4,6]:=o;")
+    libgap.eval("x[5,7]:=o;")
+    libgap.eval("x[5,9]:=o;")
+    libgap.eval("x[5,11]:=o;")
+    libgap.eval("x[7,9]:=o;")
+    libgap.eval("x[9,11]:=o;")
+    libgap.eval("x[10,12]:=o;")
+    libgap.eval("x[10,16]:=o;")
+    libgap.eval("x[10,18]:=o;")
+    libgap.eval("x[12,13]:=o;")
+    libgap.eval("x[12,16]:=o;")
+    libgap.eval("x[14,16]:=o;")
+    libgap.eval("x[14,18]:=o;")
+    libgap.eval("x[15,17]:=o;")
+    libgap.eval("x[15,19]:=o;")
+    libgap.eval("x[15,22]:=o;")
+    libgap.eval("x[16,18]:=o;")
+    libgap.eval("x[17,19]:=o;")
+    libgap.eval("x[19,22]:=o;")
+    libgap.eval("x[21,23]:=o;")
+    libgap.eval("x[21,24]:=o;")
+    libgap.eval("x[21,25]:=o;")
+    libgap.eval("x[23,24]:=o;")
+    libgap.eval("x[24,25]:=o;")
 
-    N = Matrix(GF(q), 26,26)
-    N[0,1] = 1
-    N[1,9] = 1
-    N[2,4] = 1
-    N[3,2] = 1
-    N[4,14] = 1
-    N[5,0] = 1
-    N[6,11] = 1
-    N[7,6] = 1
-    N[8,7] = 1
-    N[9,20] = 1
-    N[10,3] = 1
-    N[11,16] = 1
-    N[12,12] = 1; N[12,13] = 1
-    N[13,13] = 1
-    N[14,22] = 1
-    N[15,8] = 1
-    N[16,19] = 1
-    N[17,5] = 1
-    N[18,15] = 1
-    N[19,18] = 1
-    N[20,25] = 1
-    N[21,10] = 1
-    N[22,23] = 1
-    N[23,21] = 1
-    N[24,17] = 1
-    N[25,24] = 1
+    #matrix n
+    libgap.eval("n := NullMat(26,26,F);")
+    libgap.eval("n[1,2]:=o;")
+    libgap.eval("n[2,10]:=o;")
+    libgap.eval("n[3,5]:=o;")
+    libgap.eval("n[4,3]:=o;")
+    libgap.eval("n[5,16]:=o;")
+    libgap.eval("n[6,1]:=o;")
+    libgap.eval("n[7,12]:=o;")
+    libgap.eval("n[8,7]:=o;")
+    libgap.eval("n[9,8]:=o;")
+    libgap.eval("n[10,21]:=o;")
+    libgap.eval("n[11,4]:=o;")
+    libgap.eval("n[12,17]:=o;")
+    libgap.eval("n[13,13]:=o;")
+    libgap.eval("n[13,14]:=o;")
+    libgap.eval("n[14,14]:=o;")
+    libgap.eval("n[15,23]:=o;")
+    libgap.eval("n[16,9]:=o;")
+    libgap.eval("n[17,20]:=o;")
+    libgap.eval("n[18,6]:=o;")
+    libgap.eval("n[19,16]:=o;")
+    libgap.eval("n[20,19]:=o;")
+    libgap.eval("n[21,26]:=o;")
+    libgap.eval("n[22,11]:=o;")
+    libgap.eval("n[23,24]:=o;")
+    libgap.eval("n[24,22]:=o;")
+    libgap.eval("n[25,18]:=o;")
+    libgap.eval("n[26,25]:=o;")
 
 
-    m2 = X * N
+    #matrix m2
+    libgap.eval("m2 := x*n;")
 
-    epsilon = GF(q).multiplicative_generator()
+    #matrix h
+    libgap.eval("h := NullMat(26,26,F);")
 
-    H = Matrix(GF(q), 26,26)
-    for i in range(26):
-        if i in {1,4,14,20}:
-            H[i,i] = epsilon
-        elif i in {5,10,21,24}:
-            H[i,i] = epsilon**(-1)
-        elif i in {3,8,18,23}:
-            H[i,i] = epsilon**(-sigma + 1)
-        elif i in {2,6,16,22}:
-            H[i,i] = epsilon**(sigma - 1)
-        elif i == 9:
-            H[i,i] = epsilon**(sigma)
-        elif i == 11:
-            H[i,i] = epsilon**(-sigma + 2)
-        elif i == 15:
-            H[i,i] = epsilon**(sigma - 2)
-        elif i == 17:
-            H[i,i] = epsilon**(-sigma)
+    for i in range(1,27):
+        pos = "h["+str(i)+","+str(i)+"] :="
+        if i in {2,5,15,21}:
+            libgap.eval(pos+"ep;") 
+        elif i in {6,11,22,25}:
+            libgap.eval(pos+"ep^(-1);")
+        elif i in {4,9,19,24}:
+            libgap.eval(pos+"ep^(-s+1);")
+        elif i in {3,7,17,23}:
+            libgap.eval(pos+"ep^(s-1);")
+        elif i == 10:
+            libgap.eval(pos+"ep^s;")
+        elif i == 12:
+            libgap.eval(pos+"ep^(-s+2);")
+        elif i == 16:
+            libgap.eval(pos+"ep^(s-2);")
+        elif i == 18:
+            libgap.eval(pos+"ep^(-s);")
         else:
-            H[i,i] = 1
-    #done H
+            libgap.eval(pos+"o;")
+    #done h
 
-    #now H and m2 are generators of the group
+    #now h and m2 are generators of the group
 
-    return libgap.Group(m2,H)#error
+    libgap.eval("x := GroupByGenerators([m2,h]);")
+    libgap.eval('SetName(x,Concatenation("2F4(",String(q),")"));')
+    #size comes from bcn book
+    libgap.eval("SetSize(x,q^24*(q^2-1)*(q^6+1)*(q^8-1)*(q^12+1));")
+    return libgap.eval("x")
     
     
 ################################################################################
@@ -195,12 +221,17 @@ def generalised_octagon(s,t):
     elif t == 1:# (q,1)
         q = s
         orderType = 1
-    elif s < t:# (q,q^2)
+    elif s**2 ==  t:# (q,q^2)
         q = s
         orderType = 2
-    else: #(q^2,q)
+    elif t**2 == s: #(q^2,q)
         q = t
         orderType = 1
+    else:
+        raise ValueError("invalid input")
+
+    if not is_prime_power(q):
+        raise ValueError("invalid input")
 
     if orderType == 0:
         H = strongly_regular_graph((q+1)*(q*q+1),q*(q+1),q-1,q+1)
@@ -328,12 +359,14 @@ def generalised_hexagon( const int s, const int t):
     elif s == t:# (q,q)
         q = s
         orderType = 2
-    elif s < t:# (q,q^3)
+    elif s**3 == t:# (q,q^3)
         q = s
         orderType = 3
-    else: # (q^3, q)
+    elif t**3 == s: # (q^3, q)
         q = t
         orderType = 1
+    else:
+        raise ValueError("invalid input")
 
     if not is_prime_power(q):
         raise ValueError("invalid input")
