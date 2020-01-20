@@ -257,7 +257,15 @@ def generalised_octagon(s,t):
         G.name("Generalised octagon of order(%d,%d)"%(s,t))
         return G
     else:
-        pass
+        if q == 2:
+            g = libgap.AtlasGroup("2F4(2)", libgap.NrMovedPoints, 1755)
+            G = Graph( g.Orbit( [1,73], libgap.OnSets), format='list_of_edges')
+            G.name("Generalised octagon of order (2,4)")
+            return G
+        else:
+            pass
+    pass
+         
     
     
 def extract_lines( G, s, t):
