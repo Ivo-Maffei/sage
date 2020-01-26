@@ -1434,6 +1434,11 @@ def extended_ternary_Golay_code_graph():
     return G
 
 def coset_graph( list U_basis, list C_basis, const int q ):
+    r"""
+    computes the coset graph \Gamma(C) where C = span(C_basis)
+    we need U = span(U_basis) to be s.t. U+C = V
+    all vector spaces are over GF(q)
+    """
     n = len(U_basis[0])# dim V
     F = GF(q) #base field
 
@@ -1687,7 +1692,36 @@ def shortened_000_111_extended_binary_Golay_code_graph():
     G = coset_graph(U_basis, C_basis, 2)
     G.name("Shortened 000 111 extended binary Golay code")
     return G
-    
+
+def LintSchrijver_graph():
+    def e(const int i):
+        v = [0]*6
+        v[i] = 1
+        return vector(GF(3), v)
+
+    one = vector(GF(3), [1]*6)
+    C_basis = [one]
+    U_basis = [e(i) for i in range(5)]
+    G = coset_graph(U_basis,C_basis,3)
+
+    vertices = set()
+    for v in G.vertices():
+        v = vector(GF(3), v)
+        i = v.dot_product(one)
+        v = tuple(v)
+        if i in {1,2}:
+            vertices.add(v)
+
+    edges = []
+    for v in vertices:
+        for w in vertices:
+            if G.has_edge( (v,w) ):
+                edges.append( (v,w) )
+
+    H = Graph(edges,format='list_of_edges')
+    H.name("Linst-Schrijver graph")
+    return H
+        
     
 def large_Witt_graph():
     r"""
@@ -2414,20 +2448,20 @@ def graph_with_intersection_array( list arr ):
         d = len(a)/2
         #c_1,...,c_{d-1} = 1
         for i in range(1,d):
-            if a[d+i-1] != 1: return False
+            if a[d+i-1] != 1: return (-1,-1)
 
         t = a[2*d-1] -1 #c_d-1
         
         # b_0 = s(t+1)
-        if a[0] % (t+1) != 0: return False
+        if a[0] % (t+1) != 0: return (-1,-1)
         s = a[0] / (t+1)
         
         #lamda = s - 1 = b_0 - b_1 - c_1
-        if s -1 != a[0] - a[1] - a[d]: return False
+        if s -1 != a[0] - a[1] - a[d]: return (-1,-1)
 
         #b_i = st
         for i in range(1,d):
-            if a[i] != s*t: return False
+            if a[i] != s*t: return (-1,-1)
 
         #otherwise we have it
         return (s,t)
@@ -2449,10 +2483,6 @@ def graph_with_intersection_array( list arr ):
             return GraphGenerators.FosterGraph()
         elif arr == [7,6,4,4,4,1,1,1,1,1,1,2,4,4,6,7]:
             return IvanovIvanovFaradjev_graph()
-        else:
-            #family of graphs /other checks
-            pass
-        return "unknown"
     elif d == 7:
         if arr == [3,2,2,2,1,1,1,1,1,1,1,1,1,3]:
             return GraphGenerators.BiggsSmithGraph()
@@ -2460,10 +2490,6 @@ def graph_with_intersection_array( list arr ):
             return bipartite_double_graph(truncated_binary_Golay_code_graph())
         elif arr == [23, 22, 21, 20, 3, 2, 1, 1, 2, 3, 20, 21, 22, 23]:
             return bipartite_double_graph(binary_Golay_code_graph())
-        else:
-            #family of graphs
-            pass
-        return "unknown"
     elif d == 6:
         if arr == [21, 20, 16, 6, 2, 1, 1, 2, 6, 16, 20, 21]:
             return shortened_00_11_binary_Golay_code_graph()
@@ -2471,11 +2497,6 @@ def graph_with_intersection_array( list arr ):
             return shortened_000_111_extended_binary_Golay_code_graph()
         elif arr == [22, 21, 20, 3, 2, 1, 1, 2, 3, 20, 21, 22]:
             return shortened_binary_Golay_code_graph()
-        else:
-            #could be generalside dodecagon
-            #could be general family
-            pass
-        return "unknown"
     elif d == 5:
         if arr == [3, 2, 1, 1, 1, 1, 1, 1, 2, 3]:
             return GraphGenerators.DodecahedralGraph()
@@ -2489,4 +2510,61 @@ def graph_with_intersection_array( list arr ):
             return bipartite_double_graph(GraphGenerators.strongly_regular_graph(77,16,0))
         elif arr == [22, 21, 16, 6, 1, 1, 6, 16, 21, 22]:
             return bipartite_double_graph(GraphGenerators.HigmanSimsGraph())
+    elif d == 4:
+        if arr == [3,2,2,1,1,1,1,2]:
+            return Coxeter_graph()
+        elif arr == [6,5,5,4,1,1,2,6]:
+            return LintSchrijver_graph()
+        elif arr == [7,6,4,4,1,1,1,6]:
+            return doubly_truncated_Witt_graph()
+        elif arr == [9,8,6,3,1,1,3,8]:
+            return distance_3_doubly_truncated_Golay_code_graph()
+        elif arr == [10,8,8,2,1,1,4,5]:
+            return J2_graph()
+        elif arr == [11,10,6,1,1,1,5,11]:
+            return GraphGenerators.LivingstoneGraph()
+        elif arr == [5,4,1,1,1,1,4,5]:
+            return GraphGenerators.WellsGraph()
+        elif arr == [6,4,2,1,1,1,4,6]:
+            return Foster_graph_3S6()
+        elif arr == [10,6,4,1,1,2,6,10]:
+            #complex number graph.. to be fixed
+            pass
+        elif arr == [12,11,10,7,1,2,5,12]:
+            #leonard graph
+            pass
+        elif arr == [20,18,4,1,1,2,18,20]:
+            return shortened_ternary_Golay_code_graph()
+        elif arr == [45,32,12,1,1,6,32,25]:
+            #locally GQ graph that doesn't word
+            pass
+        elif arr == [117,80,24,1,1,12,80,117]:
+            #graph on lattice Z[w]^28
+            #13.2D p.400
+            pass
+    elif d == 3:
+        #do something
+        pass
+    
+    #otherwise check infinite families
+    
+    #classical parameters
+    try:
+        (d,b,alpha,beta) = get_classical_parameters_from_intersection_array( arr,True)
+        return distance_regular_graph_with_classical_parameters(d,b,alpha,beta)
+    except ValueError:
+        #means can't do with classical paramaters
+        pass
+
+    #gen 2d-gon
+    (s,t) = is_generalised_2d_gon(arr)
+    if s != -1:#valid gen 2d-gon
+        if d == 6:
+            return generalised_dodecagon(s,t)
+        elif d == 4:
+            return generalised_octagon(s,t)
+        elif d == 3:
+            return generalised_hexagon(s,t)
+    
+        
 
