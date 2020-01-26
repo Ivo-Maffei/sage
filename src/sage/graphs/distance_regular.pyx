@@ -36,7 +36,7 @@ import numpy as np
 # sage imports
 from sage.graphs.graph_generators import GraphGenerators
 from sage.graphs.graph import Graph
-from sage.arith.misc import is_prime_power
+from sage.arith.misc import is_prime_power, is_prime
 from sage.combinat.q_analogues import q_binomial
 from sage.combinat.integer_vector import IntegerVectors
 from sage.modules.free_module import VectorSpace
@@ -213,6 +213,247 @@ def group_2F4(const int q):
     
 ################################################################################
 # START CONSTRUCTIONS
+
+def symmetric_net_incident_graph(p,i,j):
+    M = symmetric_net(p,i,j)
+    n = len(M)
+    edges = []
+    for point in range(n):
+        for block in range(n):
+            sig_check()
+            if M[point][block] == 1:
+                #point i is in block j
+                edges.append( ( ('p',point),('b',block) ) )
+                
+    G = Graph(edges,format='list_of_edges')
+    G.name("Incident graph of symmetric (%d,%d)-net"%(p**i,p**j))
+    return G
+
+def is_symmetric_net(M,data=True):
+    r"""
+    checks if M is the incidence matrix of a symmetric net
+    if data= True, then returns (s,r,mu) values or (-1,-1,-1)
+    otherwise returns True/False
+    """
+    #first check M is a square matrix
+    n = len(M)
+    if n < 1:
+        if data: return "contains no points"
+        return False
+    
+    for i in range(n):
+        if len(M[i]) != n:
+            if data: return "not square matrix"
+            return False
+
+    #first compute a dictionary for parallelism
+    parallel = {}
+    for i in range(n):
+        parallel[i] = set()
+        #find all blocks parallel to i
+        for j in range(n):
+            if i == j: parallel[i].add(j)
+            else:
+                for l in range(n):
+                    if M[l][i]*M[l][j] != 0:
+                        #they intersect in point l
+                        break
+                else:
+                    #they are parallel
+                    parallel[i].add(j)
+    #now parallel[i] is a set of all blocks parallel to i
+    
+    #check parallellism is equivalence relation with at least 1 class of size >= 2
+    #and that there are at least 3 parallel classes
+    
+    #symmetry and reflexsivity is obvious; check transitivity
+    for b,s in parallel.items(): #for each block b
+        for b2 in s:#for each b2 parallel to b
+            for b3 in parallel[b2]: #for each b3 parallel to b2, check that it is parallel to b
+                if b3 not in s:
+                    #b || b2 and b2 || b3 but b not || b3
+                    if data: return "|| not transitive b1 %d, b2 %d, b3 %d"%(b,b2,b3)
+                    return False
+
+    #now we know transitivity
+    #compute a list of equivalence classes
+    parallelClasses = []
+    blocks = set(range(n))
+    while blocks:
+        b = blocks.pop()
+        Bclass = parallel[b]
+        parallelClasses.append(Bclass)
+        blocks = blocks.difference(Bclass) #remove Bclass from blocks
+
+    #now we have a list of all parallel classes
+    #check that there are at least 3 parallel classes
+    r = len(parallelClasses)
+    if r < 3:
+        if data: return "there are less than 3 parallel classes"
+        return False
+
+    #check that there is some class with >= 2 blocks
+    #if it is a net, then each class will have s>= 2 blocks
+    s = len(parallelClasses[0])
+    if s < 2:
+        if data: return "class has less than 2 blocks"
+        return False
+    
+    #check each equivalence class partitions the point set
+    for pClass in parallelClasses:
+        for i in range(n):
+            #check point i is in some block in pClass
+            for block in pClass:
+                if M[i][block] == 1:
+                    break
+            else:#no block contains i
+                if data: return "class doesn't partition points"
+                return False
+
+    #check that 2 non parallel block intersects in mu points
+    mu = 0
+    for i in range(n):
+        for j in range(i+1,n):
+            #compute intersection fo blocks i and j
+            intersection = 0
+            for l in range(n):
+                if M[l][i]*M[l][j] == 1:
+                    #both are 1
+                    intersection += 1
+                    
+            if intersection != 0:
+                #then it should be mu (if we have a mu yet)
+                if mu == 0: mu = intersection
+                elif intersection != mu:
+                    if data: return "not all blocks intersect into %d points"%mu
+                    return False
+
+    #now we have that all blocks intersects in mu or 0 points
+    #so we have a net!
+    #now check ARPP: the number of block containing 2 distict points is 0 or lambda
+    #if it is symmetric, then we have lambda == mu. So we can assume so
+    for i in range(n):
+        for j in range(i+1,n):
+            #count number of blocks containing points i,j
+            blocks = 0
+            for l in range(n):
+                if M[i][l]*M[j][l] == 1:
+                    #both are 1
+                    blocks += 1
+            if blocks != 0:
+                if blocks != mu:
+                    if data: return "not all points are covered by %d blocks"%mu
+                    return False
+
+    #now we have an ARPP
+    #to see if it is symmetric we need to check that: r == s*mu i.e. num blocks == num points
+    #but we already have done so by checking that M was a square matrix
+    if data: return "(%d,%d,%d)"%(s,r,mu)
+    return True
+    
+
+def symmetric_net(p,i,j):
+
+    if j < 0 or i < 1 or p**(i+j) < 3 or not is_prime(p):
+        raise ValueError("invalid input")
+    
+
+    G = GF(p**(i+j))
+    elemsG = [x for x in G]
+    K = [ [ x*y for y in elemsG] for x in elemsG]
+    #K is multiplication table for G
+
+    #now we need to map G to (Z_p)^(i+j)
+    #so we need to find a basis for G
+    iso = {}#this is the map
+    dim = i+j
+    Fp = GF(p)
+
+    #send 0 to zero vector
+    v = [0]*dim
+    v = vector(Fp, v)
+    iso[0] = v
+
+    #we use 2 sets to find a basis for G
+    #spanBasis is the span of the basis found so far
+    #leftOver are the elements left over
+    leftOver = set(elemsG)
+    leftOver.remove(0)
+    spanBasis = set() #we don't include 0
+    index = 0 #number of vectors in the basis
+
+    while leftOver:
+        sig_check()
+        x = leftOver.pop()
+        spanX = [0]*(p-1)
+        for l in range(p-1):
+            spanX[l] = x+spanX[l-1] #when l is 0 spanX[-1] = 0
+            #create vector for spanX[l]
+            #we say x mapsto e_index
+            v = [0]*dim
+            v[index] = l+1
+            v = vector(Fp, v)
+            iso[spanX[l]] = v
+        #so spanX = [x,2x,3x,...,(p-1)x]
+        index += 1
+        #and we added those to map
+        leftOver = leftOver.difference(spanX)#remove spanX from leftOver
+
+        #now we need to combina spanX with spanBasis
+        toAdd = set()#new elements to add to spanBasis
+        for b in spanBasis:
+            for y in spanX:
+                sig_check()
+                z = b+y
+                iso[z] = iso[b]+iso[y]
+                toAdd.add(z)
+                leftOver.remove(z)
+        #now toAdd and spanX are all new elements
+        #leftOver doesn't contain them
+
+        spanBasis = spanBasis.union(toAdd)
+        spanBasis = spanBasis.union(spanX)
+        #go to next element
+
+    #now iso should map G to (Z_p)^(i+j)
+    #our epimorphism G to (Z_p)^i will be iso followed from trucation
+    H = [ [ iso[x][:i] for x in row] for row in K ]
+
+    def eqx(x,y):
+        if y == x: return 1
+        else: return 0
+
+    def Hx(M,x):
+        Hx = []
+        for row in M:
+            newRow = []
+            for y in row:
+                sig_check()
+                newRow.append(eqx(x,y))
+            Hx.append(newRow)
+        return Hx
+
+    V = VectorSpace(Fp,i)
+    elemsV = [ v for v in V]
+    A = [ [ v+w for w in elemsV] for v in elemsV ] #addition table for (Z_p)^i
+    
+    #now we need to build the incident matrix
+    size = p**(2*i+j) #size of M
+    n = len(H) # size of H
+    m = len(A)
+    M = [ [0]*size for l in range(size) ] #create empty M
+    for r in range(m):
+        for c in range(m):
+            sig_check()
+            Ha = Hx(H,A[r][c])
+            #now find coordinates for Ha in M
+            #(i,j) in Ha corresponds to (n*r+i,n*c+j)
+            for l1 in range(n):
+                for l2 in range(n):
+                    M[n*r+l1][n*c+l2] = Ha[l1][l2]
+
+    #finally we are done
+    return M
 
 def generalised_octagon(s,t):
     cdef int q = 0
@@ -554,19 +795,19 @@ def local_GQ42_graph():
     #here is the problem with edges
     start = time.time()
     #(b,c) for b,c in BB if for some i b_i, c_i share a point
-    #given the order in which BB is constructing we know that
-    #BB[6k,...,6k+5] are permutation of the same tuple
-    #so we can test BB[6k] and then figure out which permutation we need
-    for i in range(240):#|BB| = 240
+    for i in range(0,240):#|BB| = 240
         b = BB[i]
         counter = 0
         for j in range(i+1,240):
             c = BB[j]
             for i in range(3):
-                if len(b[i].intersection(c[i])) == 1:
+                #apparently if there is i s.t. b[i], c[i] intersect in a point,
+                #then b[j] c[j] intersect in a point for all j
+                if len(b[1].intersection(c[1])) == 1:
+                    counter += 1
                     edges.append( (b,c) )
                     break
-
+        print("#(b,c) is %d"%counter)
     end = time.time()
     print("edges in BB in %.3f"%(end-start))
     #now all edges are done
@@ -662,6 +903,122 @@ def weird_graph():
     G.name("boh")
     return G
 
+def polar_maximal_Witt_index(d,q):
+    r""" V= F_q^{2d}. and we have a non-degenerate quadratic form Q of Witt index d
+    page 274 for graph info
+
+    we pick Q(x) = sum_{k=1}^d x_{2k-1} x_{2k}
+    Q(x) satisfy our requirements
+    """
+    def findBases(vectors, index=0, basis=set()):
+        bases = []
+        n = len(vectors)
+        while index < n:
+            v = vectors[index]
+            #check if it can go in basis
+            valid = True
+            for b in basis:
+                if Q(b+v) != 0:
+                    valid = False
+                    break
+            index += 1
+            if valid:
+                basis.add(v)
+                if len(basis) == d:
+                    bases.append(basis)
+                else:
+                    result = findBases(vectors,index,basis)
+                    if result:
+                        bases = bases + result
+                basis.remove(v)#try another v
+        return bases
+                
+                
+    
+    V = VectorSpace(GF(q), 2*d)
+
+    def Q(x):
+        res = 0
+        for k in range(d):
+            res += x[2*k-1]*x[2*k]
+        return res
+    
+    import time
+    start = time.time()
+    vertices = []
+    #we need to find the maximal isotropic subspaces (they have size d)
+    if q % 2 != 0:
+        #if char field != 2. Then the bilienar from b(x,y) = q(x+y) - q(x) -q(y)
+        #can be used to find isotropic subspaces since b(x,x) = 2q(x) and so it is 0 iff q(x) is 0
+        #thus we go through the subspaces if dim 1 and collect the isotropic ones
+        #then those of dim d can be constructing with orthogonal basis whose vector are those we kept
+        start2 = time.time()
+        isotropicVectors = []
+        for W in V.subspaces(1):
+            v = W.basis_matrix()[0]
+            if Q(v) == 0:
+                isotropicVectors.append(v)
+        end2 = time.time()
+        print("found all iso vector in %.3f"%(end2-start2))
+        print("num iso vectors %d"%(len(isotropicVectors)))
+
+        start2 = time.time()
+        #find all orthogonal bases of isotropic spaces of dim 4
+        bases = findBases(isotropicVectors)
+        end2 = time.time()
+        print("found bases in %.3f"%(end2-start2))
+
+        #we may have found 2 orthogonal basis for the same subspace
+        #the below loop removes them
+        start2 = time.time()
+        vertexSet = set()
+        for b in bases:
+            W = V.span(b)
+            vertexSet.add(W)
+        end2 = time.time()
+        print("made set in %.3f"%(end2-start2))
+        print("size of set %d"%(len(vertexSet)))
+            
+        #now go back to list
+        vertices = list(vertexSet)
+    else :
+        #this time we need to check the subspaces
+        #there is no bilinearity and so we need to check all vectors (sort of)
+        for W in V.subspaces(d):
+            #check that W is isotropic
+            isotropic = True
+            if q == 2:
+                #we need to look at all vectors
+                for w in W:
+                    if Q(w) != 0:
+                        isotropic = False
+                        break
+            else:# q = 2^k, we can avoid looking a scalar multiples of vectors
+                #so we only look at the basis of dim 1 subspaces
+                for sp in W.subspaces(1):
+                    w = sp.basis_matrix()[0]
+                    if Q(w) != 0: #Q(w) = 0 => Q(v) = 0 for all v in sp
+                        isotropic = False
+                        break
+
+            if isotropic:
+                vertices.append(W)
+    #now we have all vector spaces
+    end = time.time()
+    print("time of subspaces %.3f"%(end-start))
+
+    start = time.time()
+    edges = []
+    n = len(vertices)
+    for i in range(n):
+        for j in range(i+1,n):
+            if (vertices[i].intersection(vertices[j])).dimension() == d-1:
+                edges.append( (vertices[i].basis_matrix(), vertices[j].basis_matrix()) )
+    end = time.time()
+    print("found edges in %.3f"%(end-start))
+
+    G = Graph(edges)
+    return G
 
 def Foster_graph_3S6():
 
