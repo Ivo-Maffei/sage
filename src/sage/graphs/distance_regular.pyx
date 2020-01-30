@@ -45,7 +45,8 @@ from sage.matrix.matrix_space import MatrixSpace
 from sage.rings.finite_rings.finite_field_constructor import GF
 from sage.matrix.constructor import Matrix
 from sage.rings.rational cimport Rational
-from sage.rings.complex_field import ComplexField
+from sage.rings.integer cimport Integer
+from sage.rings.number_field.number_field import CyclotomicField
 from sage.libs.gap.libgap import libgap
 from sage.combinat.designs import design_catalog as Sage_Designs
 from sage.coding import codes_catalog as codes
@@ -654,7 +655,14 @@ def generalised_hexagon( const int s, const int t):
             G.name("Generalised hexagon of order (%d,%d)"%(q,q))
             return G
         elif q == 3: #we don't have permutation rep
-            pass
+            matrixRep = libgap.AtlasGroup("G2(3)", libgap.Position,7)
+            e1 = vector(GF(3), [1,0,0,0,0,0,0])
+            orb = matrixRep.Orbit(e1, libgap.OnLines)
+            group = libgap.Action(matrixRep,orb,libgap.OnLines)
+            #now group is our permutation rep
+            G = Graph(group.Orbit([1,52], libgap.OnSets), format='list_of_edges')
+            G.name("Generealised hexagon of order (%d,%d)"%(q,q))
+            return G
         else:
             arr = intersection_array_2d_gon(3,s,t)
             n = number_of_vertices_from_intersection_array(arr)
@@ -814,16 +822,10 @@ def local_GQ42_graph():
     G = Graph(edges)
     return G
 
-def weird_graph():
+def ConwaySmith_for_3S7():
 
-    CC = ComplexField(1024)
-
-    e = CC('e')
-    pi = CC('pi')
-    I = CC('i')
-    w = CC(e**(2* I * pi / 3) )# primitive third root of unity
-    print( "w is ")
-    print(w)
+    F = CyclotomicField(3)
+    w = F.gen()
     
     V= VectorSpace(GF(4), 6)
     z2 = GF(4)('z2') # GF(4) = {0,1,z2, z2+1}
@@ -842,7 +844,7 @@ def weird_graph():
                 zeros += 1
 
         if zeros == 2:
-            #send to CC and in K
+            #send to F and in K
             #z2 -> w
             #z2+1 -> w^2
             
@@ -853,13 +855,13 @@ def weird_graph():
                 elif x == z2+1:
                     vv.append(w**2)
                 else:
-                    vv.append( CC(x) )
+                    vv.append( Integer(x) )#this is weirdly needed for some reason
 
-            #now vv is the new vector in CC
-            vv = vector( CC, vv)
+            #now vv is the new vector in F
+            vv = vector( F, vv)
             K.append(vv)
             
-    #here K is the vectors we need and also in CC
+    #here K is the vectors we need and also in F
 
     #we need to add other vectors
     for i in range(6):
@@ -867,18 +869,13 @@ def weird_graph():
         #create e_i
         ei = [0]*6
         ei[i] = 1
-        ei = vector(CC,ei)
+        ei = vector(F,ei)
 
         K.append( 2*ei )
         K.append( 2*w*ei )
         K.append( 2*w**2*ei )
 
     #now K is all the 63 vertices
-
-    if w*w**2 != 1: print("err w^3 != 1")
-    if w**2 + w != -1: print("err w^2+w+1 != 0")
-    if w.conjugate != w**2: print("err \\bar w != w^2")
-    if (w**2).conjugate != w: print("err \\bar w^2 != w")
 
     def has_edge(u,v):
         com = 0
@@ -900,7 +897,7 @@ def weird_graph():
                 K[j].set_immutable()
                 G.add_edge( (K[i], K[j]) )
 
-    G.name("boh")
+    G.name("Conway-Smith graph for 3S7")
     return G
 
 def polar_maximal_Witt_index(d,q):
@@ -2528,8 +2525,7 @@ def graph_with_intersection_array( list arr ):
         elif arr == [6,4,2,1,1,1,4,6]:
             return Foster_graph_3S6()
         elif arr == [10,6,4,1,1,2,6,10]:
-            #complex number graph.. to be fixed
-            pass
+            return ConwaySmith_for_3S7()
         elif arr == [12,11,10,7,1,2,5,12]:
             #leonard graph
             pass
@@ -2557,10 +2553,11 @@ def graph_with_intersection_array( list arr ):
         pass
 
     #gen 2d-gon
-    (s,t) = is_generalised_2d_gon(arr)
+    (s,t) = is_generalised_2d_gon(arr)#this is not correct
     if s != -1:#valid gen 2d-gon
         if d == 6:
-            return generalised_dodecagon(s,t)
+            #return generalised_dodecagon(s,t)
+            pass
         elif d == 4:
             return generalised_octagon(s,t)
         elif d == 3:
