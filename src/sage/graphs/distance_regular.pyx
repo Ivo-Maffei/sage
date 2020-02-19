@@ -52,6 +52,7 @@ from sage.combinat.designs import design_catalog as Sage_Designs
 from sage.coding import codes_catalog as codes
 from sage.graphs.strongly_regular_db import strongly_regular_graph
 from sage.combinat.subset import Subsets
+from sage.combinat.designs import difference_matrix
 
 ################################################################################
 # UTILITY FUNCTIONS
@@ -674,153 +675,13 @@ def generalised_hexagon( const int s, const int t):
         pass
     pass
 
-def local_GQ42_graph():
-    #section 13.2.C page 399,400
-
-    import time
-    
-    F = GF(4)
-    PG = VectorSpace(F,4) #this is our projective geometry
-
-    #define our non-degenerate hermitean form
-    def h(v,w):
-        n = len(v)
-        res = 0
-        for i in range(n):
-            res += (v[i]**2) * w[i]
-        #sum (v_i)^2 w_i
-        
-        return res
-
-    start = time.time()
-    X = [] #isotropic points
-    nX = [] #non-isotropic points
-    for p in PG.subspaces(1):
-        v = p.basis_matrix()[0] #vector that spans the point
-        v.set_immutable()
-        if h(v,v) == 0:
-            X.append(v)
-        else:
-            nX.append(v)
-    #now points are divided into isotropic and non-isotropic
-    end = time.time()
-    print("divided points in %.3f"%(end-start))
-
-    def is_valid_basis(b):
-        #check if the 4 vectors in b are pairwise orthogonal
-        for i in range(4):
-            for j in range(i+1,4):
-                if h(b[i],b[j]) != 0:
-                    return False
-        return True
-
-    start = time.time()
-    B = [] #set of 40 orthogonal non-isotropic bases
-    candidates = Subsets(nX,k=4)#all subsets of nX of size 4
-    for b in candidates:
-        vs = list(b)
-        if is_valid_basis(vs):
-            B.append(vs)
-    #at the end B should have length 40
-    end = time.time()
-    print("found B in %.3f"%(end-start))
-    
-    inf = [1,2,3]# \infty_1,2,3
-    Xs = []
-    for i in range(1,4):
-        Xs.append( list(map( lambda x : (i,x), X)) )
-    #now Xs[i] = X_i
-
-    start = time.time()
-    BB = []#this are the 240 tuples
-    for b in B:
-        #partition b into 3 pairs
-        partitions = [ [(b[0],b[1]),(b[2],b[3])], [(b[0],b[2]),(b[1],b[3])], [(b[0],b[3]),(b[1],b[2])] ]
-        newParts = []
-        #translate pair of points into a line and then the
-        #6 points the line intersects with X
-        setX = frozenset(X)
-        for part in partitions:
-            K = set()
-            for (p1,p2) in part:
-                line = PG.span([p1,p2])
-                #compute intersection with X
-                points = set()
-                for p in line.subspaces(1):
-                    v = p.basis_matrix()[0]
-                    v.set_immutable()
-                    if v in setX:
-                        points.add(v)
-                
-                K = K.union(points)
-            newParts.append(frozenset(K))
-        #now newParts is a vector of length 3 with the partition we want
-        #we need to shuffle it in 6 ways
-        BB.append(tuple(newParts))
-        BB.append((newParts[0],newParts[2],newParts[1]))
-        BB.append((newParts[1],newParts[0],newParts[2]))
-        BB.append((newParts[1],newParts[2],newParts[0]))
-        BB.append((newParts[2],newParts[0],newParts[1]))
-        BB.append((newParts[2],newParts[1],newParts[0]))
-    #now BB is done
-    #BB is a list containing a list of 3 sets
-    end = time.time()
-    print("found BB in %.3f"%(end-start))
-    print("length of BB %d"%(len(BB)))
-    
-    #finally we can build the edges
-    edges = []
-
-    #(inf[i], x) for x in X_i
-    for i in range(3):
-        for x in Xs[i]:
-            edges.append((inf[i],x))
-
-    start = time.time()
-    #(x,y) for x,y in X_i and h(x,y) = 0
-    for i in range(3):
-        for x in Xs[i]:
-            for y in Xs[i]:
-                if x == y: continue
-                vx = x[1]
-                vy = y[1]
-                if h(vx,vy) == 0:
-                    edges.append((x,y))
-    end = time.time()
-    print("edges in X_i in %.3f"%(end-start))
-
-    start = time.time()
-    #(x,b) for x in X_i s.t. x lies in points of b[i]
-    for i in range(3):
-        for x in Xs[i]:
-            vx = x[1]
-            for b in BB:
-                if vx in b[i]:
-                    edges.append( (x,b) )
-    end = time.time()
-    print("edges in X_i BB in %.3f"%(end-start))
-
-    #here is the problem with edges
-    start = time.time()
-    #(b,c) for b,c in BB if for some i b_i, c_i share a point
-    for i in range(0,240):#|BB| = 240
-        b = BB[i]
-        counter = 0
-        for j in range(i+1,240):
-            c = BB[j]
-            for i in range(3):
-                #apparently if there is i s.t. b[i], c[i] intersect in a point,
-                #then b[j] c[j] intersect in a point for all j
-                if len(b[1].intersection(c[1])) == 1:
-                    counter += 1
-                    edges.append( (b,c) )
-                    break
-        print("#(b,c) is %d"%counter)
-    end = time.time()
-    print("edges in BB in %.3f"%(end-start))
-    #now all edges are done
-    G = Graph(edges)
-    return G
+def locally_GQ42_graph():
+   H = libgap.AtlasGroup("3^2.U4(3).D8")
+   Ns = H.NormalSubgroups()
+   group = libgap.Action(Ns[6], Ns[6].Orbit(1))
+   G = Graph(group.Orbit([1,9],libgap.OnSets), format='list_of_edges')
+   G.name("locally GQ(4,2) graph")
+   return G
 
 def ConwaySmith_for_3S7():
 
@@ -898,6 +759,12 @@ def ConwaySmith_for_3S7():
                 G.add_edge( (K[i], K[j]) )
 
     G.name("Conway-Smith graph for 3S7")
+    return G
+
+def graph_3O73():
+    group = libgap.AtlasGroup("3.O7(3)",libgap.NrMovedPoints,1134)
+    G = Graph( group.Orbit([1,3], libgap.OnSets), format='list_of_edges')
+    G.name("Distance transitive graph with automorphism group 3.O_7(3)")
     return G
 
 def polar_maximal_Witt_index(d,q):
@@ -2531,13 +2398,10 @@ def graph_with_intersection_array( list arr ):
             pass
         elif arr == [20,18,4,1,1,2,18,20]:
             return shortened_ternary_Golay_code_graph()
-        elif arr == [45,32,12,1,1,6,32,25]:
-            #locally GQ graph that doesn't word
-            pass
+        elif arr == [45,32,12,1,1,6,32,45]:
+            return locally_GQ42_graph()
         elif arr == [117,80,24,1,1,12,80,117]:
-            #graph on lattice Z[w]^28
-            #13.2D p.400
-            pass
+            return graph_3O73()
     elif d == 3:
         #do something
         pass

@@ -241,6 +241,21 @@ def difference_matrix(g,k,lmbda=1,existence=False,check=True):
         G = F
         M = [[x*y for y in F_k_set] for x in F_set]
 
+    elif lmbda == 2 and is_prime_power(n):
+        if k == 2*n:
+            if existence: return True
+            return prime_power_and_2_difference_matrix(n)
+
+    elif is_prime_power(lmbda):
+        (p,j) = is_prime_power(lmbda)
+        (q,i) = is_prime_power(g)
+        if p == q and p**(i+j) == k:
+            #we have a (p^i, p^(i+j), p^j) diff-matrix
+            if existence:
+                return True
+            return prime_power_difference_matrix(p,i,j)
+            
+
     # Treat the case k=None
     # (find the max k such that there exists a DM)
     elif k is None:
@@ -275,3 +290,105 @@ def difference_matrix(g,k,lmbda=1,existence=False,check=True):
         raise RuntimeError("Sage built something which is not a ({},{},{})-DM!".format(g,k,lmbda))
 
     return G,M
+
+def prime_power_difference_matrix(p,i,j):
+    r"""
+    Return a `(p^i, p^(i+j), p^j)` difference matrix
+    """
+    G = GF(p**(i+j))
+    elemsG = [x for x in G]
+    K = [ [ x*y for y in elemsG] for x in elemsG]
+    #K is multiplication table for G
+
+    #now we need to map G to (Z_p)^(i+j)
+    #so we need to find a basis for G
+    iso = {}#this is the map
+    dim = i+j
+    Fp = GF(p)
+
+    #send 0 to zero vector
+    v = [0]*dim
+    v = vector(Fp, v)
+    iso[0] = v
+
+    #we use 2 sets to find a basis for G
+    #spanBasis is the span of the basis found so far
+    #leftOver are the elements left over
+    leftOver = set(elemsG)
+    leftOver.remove(0)
+    spanBasis = set() #we don't include 0
+    index = 0 #number of vectors in the basis
+
+    while leftOver:
+        sig_check()
+        x = leftOver.pop()
+        spanX = [0]*(p-1)
+        for l in range(p-1):
+            spanX[l] = x+spanX[l-1] #when l is 0 spanX[-1] = 0
+            #create vector for spanX[l]
+            #we say x mapsto e_index
+            v = [0]*dim
+            v[index] = l+1
+            v = vector(Fp, v)
+            iso[spanX[l]] = v
+        #so spanX = [x,2x,3x,...,(p-1)x]
+        index += 1
+        #and we added those to map
+        leftOver = leftOver.difference(spanX)#remove spanX from leftOver
+
+        #now we need to combina spanX with spanBasis
+        toAdd = set()#new elements to add to spanBasis
+        for b in spanBasis:
+            for y in spanX:
+                sig_check()
+                z = b+y
+                iso[z] = iso[b]+iso[y]
+                toAdd.add(z)
+                leftOver.remove(z)
+        #now toAdd and spanX are all new elements
+        #leftOver doesn't contain them
+
+        spanBasis = spanBasis.union(toAdd)
+        spanBasis = spanBasis.union(spanX)
+        #go to next element
+
+    #now iso should map G to (Z_p)^(i+j)
+    #our epimorphism G to (Z_p)^i will be iso followed from trucation
+    H = [ [ iso[x][:i] for x in row] for row in K ]
+
+    return H
+
+def prime_power_and_2_difference_matrix(q):
+    r"""
+    Return a `(q,2q,2)` difference matrix
+    """
+
+    if q % 2 == 0:
+        (p,i) = is_prime_power(q)
+        return prime_power_difference_matrix(2,i,1)
+
+    Fq = GF(q)
+    elems = [x for x in Fq]
+    l = len(elems)
+    n = Fq.gen() #we only need a non-square, but this should do
+
+    D = [ [0]*(2*q) for i in range(2*q) ]
+    for i in range(1,5):
+        for x in range(l):
+            for y in range(l):
+                if i == 1:
+                    d = elems[x]*elems[y] + ( elems[x]**2 / 4)
+                elif i == 2:
+                    d = elems[x]*elems[y] + (n*elems[x]**2 / 4)
+                elif i == 3:
+                    d = elems[x]*elems[y] - elems[y]**2 - (elems[x]**2 / 4)
+                elif i == 4:
+                    d = (elems[x]*elems[y] - elems[y]**2 - elems[x]**2 / 4) / n
+
+                rowshift = q if i > 2 else 0
+                colshift = q if i%2 == 0 else 0
+                D[x + rowshift][y + colshift] = d
+
+    return D
+                
+    

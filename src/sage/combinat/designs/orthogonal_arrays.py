@@ -64,6 +64,21 @@ from .group_divisible_designs import GroupDivisibleDesign
 from .designs_pyx import _OA_cache_set, _OA_cache_get, _OA_cache_construction_available
 
 
+def symmetric_transversal_design(n, lmbda=1, check=True, existence=True):
+    r"""
+    Return a symmetric transversal design of parameters `n,\lambda`.
+
+    A symmetric transversal design is a transversal design whose dual is
+    a transversal design with the same parameters.
+    Equivalently is a resolvable transversal design with `k = \lambda*n`.
+    """
+    if lmbda == 1:
+        return transversal_design(n,n,True,check,existence)
+
+    #for lambda != 1 we need to implement it
+    
+
+
 def transversal_design(k, n, resolvable=False, check=True, existence=False):
     r"""
     Return a transversal design of parameters `k,n`.
@@ -904,7 +919,7 @@ def orthogonal_array(k,n,t=2,resolvable=False, check=True,existence=False,explai
     elif t != 2:
         if existence:
             return Unknown
-        msg = "Only trivial orthogonal arrays are implemented for t>=2"
+        msg = "Only trivial orthogonal arrays are implemented for t>2"
         if explain_construction:
             return msg
         raise NotImplementedError(msg)
