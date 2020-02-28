@@ -52,7 +52,6 @@ from sage.combinat.designs import design_catalog as Sage_Designs
 from sage.coding import codes_catalog as codes
 from sage.graphs.strongly_regular_db import strongly_regular_graph
 from sage.combinat.subset import Subsets
-from sage.combinat.designs import difference_matrix
 
 ################################################################################
 # UTILITY FUNCTIONS
@@ -457,6 +456,47 @@ def symmetric_net(p,i,j):
     #finally we are done
     return M
 
+def generalised_dodecagon(s,t):
+    cdef int q = 0
+    cdef int orderType = 0
+
+    if s == 1: #(1,q)
+        q = t
+    elif t == 1: # (q,1)
+        q = s
+        orderType = 1
+    else:
+        raise ValueError("invalid input")
+
+    if not is_prime_power(q):
+        raise ValueError("invalid input")
+
+    if orderType == 0:
+        #incidence graph of hexagon (q,q)
+        
+        H = generalised_hexagon(q,q)
+        lines = extract_lines(H,q,q)
+        points = list(H.vertices())
+
+        edges = []
+        for p in points:
+            for l in lines:
+                if p in l:
+                    edges.append( (p,l) )
+
+        G = Graph(edges, format='list_of_edges')
+        G.name("Generalised dodecagon of order (1,%d)"%q)
+        return G
+    
+    else: #orderType == 1
+        #dual
+        H = generalised_dodecagon(t,s)
+        G = line_graph_generalised_polygon(H,t,s)
+        G.name("Generalised dodecagon of order (%s,%d)"%(s,t))
+        return G
+    
+        
+
 def generalised_octagon(s,t):
     cdef int q = 0
     cdef int orderType = 0
@@ -534,7 +574,7 @@ def extract_lines( G, s, t):
     numLines = (G.order() * (t+1)) / (s+1)
 
     lines = []
-    edges = set(G.edges())
+    edges = set(G.edges(sort=False))
     
     while edges :
         (x,y,w) = edges.pop()
@@ -2114,10 +2154,17 @@ def get_classical_parameters_from_intersection_array( array, check=False):
         # b \in { c_2 - 1, -a_1 - 1}
         # try b = c_2 - 1
         b = c_(2) - 1
-        (alpha,beta) = getAlphaBeta(b)
-        if not checkValues(array, d, b, alpha, beta) :
+        if b not in {0,-1} and q_binomial(d,1,q=b) != 0:#look at p196 for reasons why 0,-1
+            (alpha,beta) = getAlphaBeta(b)
+            if not checkValues(array, d, b, alpha, beta) :
+                # then we must have b = -a_1 - 1
+                b = -a_(1) - 1
+        else:
             # then we must have b = -a_1 - 1
             b = -a_(1) - 1
+
+    if b in {0,-1} or q_binomial(d,1,q=b) == 0:
+        raise ValueError("invalid input")
     
     (alpha,beta) = getAlphaBeta(b)
     
@@ -2209,13 +2256,13 @@ def distance_regular_graph_with_classical_parameters( const int d,
     beta = Rational(input_beta)
     
     if b == 1 :
-        if alpha == 1 and beta + d < 2 * d:
+        if alpha == 1 and beta >= d:#since beta+d = n >= 2*d
             # Johnson Graph
             return GraphGenerators.JohnsonGraph(beta+d, d)
         elif d == 3 and alpha == 4 and beta == 9:
             # Gosset graph
             return GraphGenerators.GossetGraph()
-        elif alpha == 0 and beta + 1 >= d:
+        elif alpha == 0:
             # Hamming Graph
             n = beta + 1
             return GraphGenerators.HammingGraph(d,n)
@@ -2306,6 +2353,198 @@ def distance_regular_graph_with_classical_parameters( const int d,
     raise ValueError(
         "Can't find a distance-regular graph with the given parameters")
 
+def intersection_array_of_pseudo_partition_graph(m,a):
+    r"""
+    Return intersection array of pseudo partiotion graph with parameters m,a
+
+    m = 2*d or 2*d +1
+    b_i = (m-i)(1 + a(m-1-i)) for i < d
+    c_i = i(1+ a(i-1)) for i < d
+    b_d = 0; c_d = g*d(1+a(d-1)) where g = m % 2
+    """
+    g = 2 - m% 2
+    if g == 2:
+        d = m // 2
+    else:
+        d = (m-1) // 2
+
+    arr = [0]*(2*d)
+    for i in range(d):
+        arr[i] = (m - i)*( 1 + a*(m-1-i)) #b_i
+        j = i+1
+        arr[i+d] = j*(1+a*(j-1)) #c_j
+
+    arr[2*d-1] = g*d*(1+a*(d-1)) #fix c_d
+
+    return arr
+
+
+def _is_pseudo_partition_graph( list arr ):
+    r"""
+    returns (m,a) if arr is the intersection array of a spuedo partition graph with parameters m,a
+    if the array is no good, then returns (-1,-1)
+    p197
+
+   
+
+    """
+    d = len(arr)
+    if d % 2 != 0:
+        raise ValueError("incorrect intersection array given")
+
+    d = d // 2
+
+    if d < 3 :
+        raise ValueError("only deal with distance regular graphs of diameter >= 3")
+    
+    #m = 2*d or 2*d +1
+    #b_i = (m-i)(1 + a(m-1-i)) for i < d
+    #c_i = i(1+ a(i-1)) for i < d
+    #b_d = 0; c_d = g*d(1+a(d-1)) where g = m % 2
+
+    #c_2 = 2 ( 1+a)
+    c2 = arr[d+1]
+    if c2 % 2 != 0:
+        return (-1,-1)
+    a = c2 // 2 -1
+
+    #try m = 2d
+    m = 2*d
+
+    newArr = intersection_array_of_pseudo_partition_graph(m,a)
+    if arr == newArr:
+        return (m,a)
+    else:
+        m = m+1# m = 2*d +1
+        newArr = intersection_array_of_pseudo_partition_graph(m,a)
+        if arr == newArr:
+            return (m,a)
+
+    return (-1,-1)
+        
+    
+def pseudo_partition_graph(m,a):
+    r""" p 198"""
+    if a == 0:
+        return fold_graph(GraphGenerators.HammingGraph(m,2))
+    elif a == 1:
+        return fold_graph(GraphGenerators.JohnsonGraph(2*m,m))
+    elif a == 2:
+        return fold_graph(halved_cube(2*m))
+
+    if m >= 8:
+        raise ValueError("no graph with m >=8 and a \notin {0,1,2} exists")
+
+    raise ValueError("no known graph exists")
+
+def is_near_polygon(list arr):
+    r"""
+    Checks if the intersection array could be of a near polygon. if so returns a parameter l, otherwise -1
+
+    p199 theorem 6.4.1:
+    a dist-reg graph with int. arr [b_0,...,b_{d-1}, c_1, ..., c_d] is a regular near polygon
+    iff there is no induced subgraph K_{1,1,2} and there is l s.t. b_i = k - (l+1)*c_i for i = 0,..,d-1.
+
+    In particular, if it is a near polygon, then is a near 2d-gon if k = (l+1)*c_d and a near (2d+1)-gon otherwise
+    """
+
+    d = len(arr)
+    if d % 2 != 0:
+        raise ValueError("intersection array can't be one of a dist. reg. graph")
+    d = d // 2
+
+    k = arr[0]
+    l = (k - arr[1]) // arr[d] - 1
+    
+    #for i = 0 we have b_0 = k - (l+1)*c_0 = k since c_0 = 0 always
+    # we check i = 1 since in our expression for l we use integer division
+    for i in range(1,d-1):
+        if arr[i] != k - (l+1)*arr[d+i-1]:
+            return -1
+
+    #if we get here we passed the test
+    return l
+
+def dist_reg_near_polygon(list arr):
+    r"""
+    Returns a dist reg graph which is a near polygon with the given intersection array
+
+    I NEED TO BE CAREFUL WITH ERRORS: invalid array or unknown graph????
+    """
+
+    d = len(arr)
+    l = is_near_polygon(arr)
+    if l == -1 or d %2 == 1:
+        raise ValueError("no near polygon exists with such int array")
+
+    d = d // 2
+    k = arr[0]
+
+    if k == (l+1)*arr[2*d-1]:
+        n = 2*d
+        g = 2
+    else:
+        n = 2*d +1
+        g = 1
+
+    if k == 2 and l == 0:
+        #polygon, but still check c_i's
+        for i in range(1,d):
+            if arr[d-1+i] != 1:
+                raise ValueError("invalide int. array")
+        if arr[2*d-1] != g:
+            raise ValueError("invalid int arr")
+        
+        return polygon(n)
+
+    elif l == 0 and k == d+1 and n == 2*d +1:
+        #odd graph
+        #still check c_i's
+        for i in range(1,d+1):
+            #c_{2j} = j
+            #c_{2j -1} = j
+            #so c_i = (i+1) // 2
+            if arr[d-1+i] != (i+1) // 2:
+                raise ValueError("invalid int arr")
+
+        #what I call Odd(n) is Odd(n+1) in Sage
+        return GraphGenerators.OddGraph(d+1)
+    elif l == 0 and n == 2*d:
+        #R3 (double grassman or odd)
+        if d % 2 == 0:
+            raise ValueError("invalid int arr")
+        e = (d-1) // 2
+        if k == e+1:
+            #double odd
+            #c_i need to satisfies the same as above
+            for i in range(1,d+1):
+                if arr[d-1+i] != (i+1) // 2:
+                    raise ValueError("invalid int arr")
+                
+            #I postulate that doubled_odd_graph(x) has diameter 2*x +1
+            #I should prove it
+            return doubled_odd_graph(e)
+        else:
+            #we have double grassman
+            #k = q_binomial(e+1,1,q) for some prime power q
+            #c_j = q_binomail( (j+1)//2, 1, q)
+            #so c_3 = q_binomial( 2,1,q) = q+1
+            #we need d >= 3
+            q = arr[d-1+3] -1
+            if not is_prime_power(q) or k != q_binomial(e+1,1,q):
+                raise ValueError("invalid int arr")
+
+            #now check c_i's
+            for i in range(1,d+1):
+                if arr[d-1+i] != q_binomial( (i+1)//2, 1,q):
+                    raise ValueError("invalid int arr")
+
+            return double_Grassman(q,n,e)
+        
+    # classical parameters or pseudo partition
+    # we assume that those are already ruled out
+    raise ValueError("unknown graph")        
+
 
 def graph_with_intersection_array( list arr ):
     def is_generalised_2d_gon(a):
@@ -2343,7 +2582,7 @@ def graph_with_intersection_array( list arr ):
         # a near polygon
         pass
     elif d == 8:
-        if arr == [3,2,2,2,2,1,1,1,1,1,1,2,2,2,2,3]:
+        if arr == [3,2,2,2,2,1,1,1,1,1,1,1,2,2,2,3]:
             return GraphGenerators.FosterGraph()
         elif arr == [7,6,4,4,4,1,1,1,1,1,1,2,4,4,6,7]:
             return IvanovIvanovFaradjev_graph()
@@ -2416,16 +2655,86 @@ def graph_with_intersection_array( list arr ):
         #means can't do with classical paramaters
         pass
 
+    (m,a) =  _is_pseudo_partition_graph( arr )
+    if m != -1:
+        return pseudo_partition_graph(m,a) #this may give errors
+    # but there are no other graphs with such intersection arrays
+
     #gen 2d-gon
     (s,t) = is_generalised_2d_gon(arr)#this is not correct
     if s != -1:#valid gen 2d-gon
         if d == 6:
-            #return generalised_dodecagon(s,t)
+            return generalised_dodecagon(s,t)
             pass
         elif d == 4:
             return generalised_octagon(s,t)
         elif d == 3:
             return generalised_hexagon(s,t)
-    
-        
 
+    #check near polygons
+    #some classical parameters and pseudo partition graphs are near polygons, so it is
+    #better to check those first and check near polygons later and assume that those cases can't arise
+    if is_near_polygon(arr) != -1:
+        return dist_reg_near_polygon(arr)
+
+    raise ValueError("unknown graph")
+
+
+
+#silly attempt at orthogonal arrays
+def orthogonal_array(cdef int v, cdef int k, cdef int l):
+    r"""
+    We need to return a `l*v^2 x k` matrix `D` s.t. 
+    within every 2 columes of `D`, every pair `(i,j) \in {0,...,v-1}^2`
+    is contained exactly `l` times
+    """
+
+    #each colums is a permutation of the same set of numbers
+    #try recusion to backtrack permutations
+    #we use a function add_colum that takes a matrix and adds a good comlumn if possible or returns None
+
+    #first column can be arbitrary
+    col = [i for i in range(v) ]
+    for i in range(l-1):
+        col = col + col
+
+    #now col is [0,1,2...,v-1,0,1,...,v-1,.... ] l times
+    D = [col]
+    D = make_orthogonal_array(D,v,k-1,l)
+    if D is None:
+        return False
+    else: return D
+
+def make_orthogonal_array(D,v,k,l):
+    r"""
+    this is the recursive function used for backtracking
+    we take D and add k columns to it to make it an orthogonal array
+    """
+
+    #base case
+    if k == 0:
+        return D
+
+    #otherwise try all possible columns
+    for col in generate_columns(D,v,l):
+        D.append(col)
+        H = make_orthogonal_array(D,v,k-1,l)
+        if H is not None:
+            return H
+        else:
+            D = D[:-1]
+        #try again
+    #fail to succeed
+    D = D[:-1]
+    return None
+
+def generate_columns(D,v,l):
+    r"""
+    generator function that should generate all possible columns
+    that can be added to D
+
+    we need to find a column c s.t. for any a in D every pair (i,j) in {0,...,v-1}^2 appears l times
+    so for every i in {0,...,v-1} we need to find a permutation of {0,...,v-1}^l s.t.
+    each (i,j) appears l times
+    """
+    
