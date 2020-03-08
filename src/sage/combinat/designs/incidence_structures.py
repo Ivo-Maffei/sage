@@ -1094,8 +1094,16 @@ class IncidenceStructure(object):
             sizes = PositiveIntegers()
         elif sizes in PositiveIntegers():
             sizes = (sizes,)
-        V = [Set(v)  for v in self]
-        return Graph([V, lambda x,y: len(x & y) in sizes], loops=False)
+        #V = [Set(v)  for v in self]
+        #return Graph([V, lambda x,y: len(x & y) in sizes], loops=False)
+        blocks = [set(x) for x in self]
+        n = self.num_blocks()
+        edges = []
+        for i in range(n):
+            for j in range(i+1,n):
+                if len(blocks[i] & blocks[j]) in sizes:
+                    edges.append((i,j))
+        return Graph(edges,format='list_of_edges')
 
     def incidence_matrix(self):
         r"""

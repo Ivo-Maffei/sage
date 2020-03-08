@@ -1758,7 +1758,24 @@ def Grassman( const int q, const int n, const int input_e ):
     return G
 
 def double_Grassman(const int q, const int n, const int e):
-    return bipartite_double_graph(Grassman(q,n,e))
+    r"""
+    vertices : e, e+1 dimensional subsets of (F_q)^n
+    edges: (u,v) if u\neq v and (u \in v or v \in u)
+    """
+
+    PG1 = Sage_Designs.ProjectiveGeometryDesign(n-1,e-1,q)
+    PG2 = Sage_Designs.ProjectiveGeometryDesign(n-1,e,q)
+
+    edges = []
+    for b in PG1.blocks():
+        b1 = frozenset(b)
+        for b2 in PG2.blocks():
+            if b1.issubset(b2):
+                edges.append( (b1,frozenset(b2)) )
+
+    G = Graph(edges,format='list_of_edges')
+    G.name("Double Grassman graph (%d,%d,%d)"%(n,e,q))
+    return G
 
 
 # END CONSTRUCTIONS
@@ -2314,6 +2331,7 @@ def distance_regular_graph_with_classical_parameters( const int d,
             e = is_power_of( beta, b )
             if e == 1:
                 #dual sympletic
+                print("sympletic dual polar %d,%d"%(2*d,b))
                 return GraphGenerators.SymplecticDualPolarGraph(2*d, b)
             
             pass
@@ -2538,8 +2556,9 @@ def dist_reg_near_polygon(list arr):
             for i in range(1,d+1):
                 if arr[d-1+i] != q_binomial( (i+1)//2, 1,q):
                     raise ValueError("invalid int arr")
-
-            return double_Grassman(q,n,e)
+            #note that the diameter of the double grassman graph (q',n',e')
+            #is n'
+            return double_Grassman(q,d,e)
         
     # classical parameters or pseudo partition
     # we assume that those are already ruled out
@@ -2682,7 +2701,7 @@ def graph_with_intersection_array( list arr ):
 
 
 #silly attempt at orthogonal arrays
-def orthogonal_array(cdef int v, cdef int k, cdef int l):
+def orthogonal_array(int v, int k, int l):
     r"""
     We need to return a `l*v^2 x k` matrix `D` s.t. 
     within every 2 columes of `D`, every pair `(i,j) \in {0,...,v-1}^2`
