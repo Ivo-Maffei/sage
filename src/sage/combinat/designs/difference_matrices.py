@@ -19,6 +19,7 @@ from sage.rings.finite_rings.finite_field_constructor import FiniteField
 from sage.arith.all import is_prime_power, divisors
 from .designs_pyx import is_difference_matrix
 from .database import DM as DM_constructions
+from sage.combinat.matrices.hadamard_matrix import hadamard_matrix
 
 @cached_function
 def find_product_decomposition(g, k, lmbda=1):
@@ -241,20 +242,33 @@ def difference_matrix(g,k,lmbda=1,existence=False,check=True):
         G = F
         M = [[x*y for y in F_k_set] for x in F_set]
 
-    elif lmbda == 2 and is_prime_power(n):
-        if k == 2*n:
+    elif lmbda == 2 and is_prime_power(g):
+        if k == 2*g:
             if existence: return True
-            return prime_power_and_2_difference_matrix(n)
+            (G,M) = prime_power_and_2_difference_matrix(g)
 
     elif is_prime_power(lmbda):
-        (p,j) = is_prime_power(lmbda)
-        (q,i) = is_prime_power(g)
+        (p,j) = is_prime_power(lmbda,get_data=True)
+        (q,i) = is_prime_power(g,get_data=True)
         if p == q and p**(i+j) == k:
             #we have a (p^i, p^(i+j), p^j) diff-matrix
             if existence:
                 return True
-            return prime_power_difference_matrix(p,i,j)
-            
+            (G,M) = prime_power_difference_matrix(p,i,j)
+
+    elif g == 2 and k == 2*lmbda:
+        #a (2,2m,m) diff matrix is a hadamard matrix of order 2m
+        #this is a iff
+        if existence:
+            return hadamard_matrix(k,existence=True)
+        M = hadamard_matrix(k)
+
+        #we have a problem: can't create multiplicative group {1,-1}
+        #we we change M over Z_2
+
+        # M = map (map (1->0; -1->1)) M 
+        M = list(map( lambda r: list(map(lambda x: 0 if x == 1 else 1,r )), M ) )
+        G = FiniteField(2)
 
     # Treat the case k=None
     # (find the max k such that there exists a DM)
@@ -295,7 +309,12 @@ def prime_power_difference_matrix(p,i,j):
     r"""
     Return a `(p^i, p^(i+j), p^j)` difference matrix
     """
-    G = GF(p**(i+j))
+
+    from sage.modules.free_module_element import vector
+    from sage.modules.free_module import VectorSpace
+
+    
+    G = FiniteField(p**(i+j))
     elemsG = [x for x in G]
     K = [ [ x*y for y in elemsG] for x in elemsG]
     #K is multiplication table for G
@@ -304,7 +323,7 @@ def prime_power_difference_matrix(p,i,j):
     #so we need to find a basis for G
     iso = {}#this is the map
     dim = i+j
-    Fp = GF(p)
+    Fp = FiniteField(p)
 
     #send 0 to zero vector
     v = [0]*dim
@@ -320,7 +339,6 @@ def prime_power_difference_matrix(p,i,j):
     index = 0 #number of vectors in the basis
 
     while leftOver:
-        sig_check()
         x = leftOver.pop()
         spanX = [0]*(p-1)
         for l in range(p-1):
@@ -340,7 +358,6 @@ def prime_power_difference_matrix(p,i,j):
         toAdd = set()#new elements to add to spanBasis
         for b in spanBasis:
             for y in spanX:
-                sig_check()
                 z = b+y
                 iso[z] = iso[b]+iso[y]
                 toAdd.add(z)
@@ -356,7 +373,10 @@ def prime_power_difference_matrix(p,i,j):
     #our epimorphism G to (Z_p)^i will be iso followed from trucation
     H = [ [ iso[x][:i] for x in row] for row in K ]
 
-    return H
+    #So H is Over (Z_p)^i
+    V = VectorSpace(Fp,i)
+
+    return V,H
 
 def prime_power_and_2_difference_matrix(q):
     r"""
@@ -364,10 +384,10 @@ def prime_power_and_2_difference_matrix(q):
     """
 
     if q % 2 == 0:
-        (p,i) = is_prime_power(q)
+        (p,i) = is_prime_power(q,get_data=True)
         return prime_power_difference_matrix(2,i,1)
 
-    Fq = GF(q)
+    Fq = FiniteField(q)
     elems = [x for x in Fq]
     l = len(elems)
     n = Fq.gen() #we only need a non-square, but this should do
@@ -389,6 +409,6 @@ def prime_power_and_2_difference_matrix(q):
                 colshift = q if i%2 == 0 else 0
                 D[x + rowshift][y + colshift] = d
 
-    return D
+    return Fq,D
                 
     

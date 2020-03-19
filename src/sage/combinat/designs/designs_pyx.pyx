@@ -598,6 +598,7 @@ def is_quasi_difference_matrix(M,G,int k,int lmbda,int mu,int u,verbose=False):
         False
     """
     from .difference_family import group_law
+    from sage.categories.vector_spaces import VectorSpaces
 
     assert k>=2
     assert lmbda >=1
@@ -628,6 +629,10 @@ def is_quasi_difference_matrix(M,G,int k,int lmbda,int mu,int u,verbose=False):
 
     # Map group element with integers
     cdef list int_to_group = list(G)
+    if G in VectorSpaces:
+        for v in int_to_group:
+            v.set_immutable()
+
     cdef dict group_to_int = {v:i for i,v in enumerate(int_to_group)}
 
     # Allocations
@@ -657,7 +662,9 @@ def is_quasi_difference_matrix(M,G,int k,int lmbda,int mu,int u,verbose=False):
         minus_Gj = inv(Gj)
         assert op(Gj, minus_Gj) == zero
         for i,Gi in enumerate(int_to_group):
-            x_minus_y[i][j] = group_to_int[op(Gi,minus_Gj)]
+            res = op(Gi,minus_Gj)
+            if G in VectorSpaces: res.set_immutable()
+            x_minus_y[i][j] = group_to_int[res]
 
     # Empty values
     for i in range(n+1):
@@ -667,7 +674,12 @@ def is_quasi_difference_matrix(M,G,int k,int lmbda,int mu,int u,verbose=False):
     # A copy of the matrix
     for i,R in enumerate(M):
         for j,x in enumerate(R):
-            M_c[i*k+j] = group_to_int[G(x)] if x is not None else n
+            if x is not None:
+                e = G(x)
+                if G in VectorSpaces: e.set_immutable()
+                M_c[i*k+j] = group_to_int[e]
+            else:
+                M_c[i*k+j] = n
 
     # Each row contains at most one empty entry
     if u:

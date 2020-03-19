@@ -215,246 +215,93 @@ def group_2F4(const int q):
 ################################################################################
 # START CONSTRUCTIONS
 
-def symmetric_net_incident_graph(p,i,j):
-    M = symmetric_net(p,i,j)
-    n = len(M)
+
+def graph_from_two_design( D ):
+    r"""
+    Given a two graph (block design) it builds a graph associated with it.
+    """
+
     edges = []
-    for point in range(n):
-        for block in range(n):
-            sig_check()
-            if M[point][block] == 1:
-                #point i is in block j
-                edges.append( ( ('p',point),('b',block) ) )
-                
-    G = Graph(edges,format='list_of_edges')
-    G.name("Incident graph of symmetric (%d,%d)-net"%(p**i,p**j))
+    
+    #vertices = x^+, x^- for all x\in X
+    # x^a,y^b are adjecent if: x != y and ( (a == b and {x,y,inf} coherent) or ( a != B and {x,y,inf} not coherent) )
+    # inf is just a point in X
+    inf = D.ground_set()[0]
+
+    #first we do all coherent edges
+    S = set() #set of coherent pairs
+    for b in D.blocks():
+        if b[0] == inf: x=b[1]; y=b[2]
+        elif b[1] == inf: x=b[0]; y=b[2]
+        elif b[2] == inf: x=b[0];y=b[1]
+        else: continue
+        #now x,y,inf are coherent
+        S.add( frozenset([x,y]) )
+        edges.append( ((x,0),(y,0)) )
+        edges.append( ((x,1),(y,1)) )
+
+    #now inf is coherent with any other vertex
+    for x in D.ground_set()[1:]:#we don't want edge inf inf
+        #{x,inf,inf} is coherent
+        edges.append( ((x,0),(inf,0)) )
+        edges.append( ((x,1),(inf,1)) )
+        S.add( frozenset([x,inf]) )
+
+    #now we can handle the non-coherent ones
+    l = D.num_points()
+    for i in range(l):
+        x = D.ground_set()[i]
+        for j in range(i+1,l):#go through all ordered pairt
+            y = D.ground_set()[j]
+            if frozenset([x,y]) in S: continue#x,y,inf coherent
+            #otherwise add edge
+            edges.append( ((x,0),(y,1)) )
+            edges.append( ((x,1),(y,0)) )
+
+    G = Graph(edges,format="list_of_edges")
     return G
 
-def is_symmetric_net(M,data=True):
-    r"""
-    checks if M is the incidence matrix of a symmetric net
-    if data= True, then returns (s,r,mu) values or (-1,-1,-1)
-    otherwise returns True/False
-    """
-    #first check M is a square matrix
-    n = len(M)
-    if n < 1:
-        if data: return "contains no points"
-        return False
+#def symmetric_net_incident_graph(p,i,j):
+   # M = symmetric_net(p,i,j)
+   # n = len(M)
+   # edges = []
+   # for point in range(n):
+   #     for block in range(n):
+   #         sig_check()
+   #         if M[point][block] == 1:
+   #             #point i is in block j
+   #             edges.append( ( ('p',point),('b',block) ) )
+   #             
+   # G = Graph(edges,format='list_of_edges')
+   # G.name("Incident graph of symmetric (%d,%d)-net"%(p**i,p**j))
+   # return G
+
+def complete_arc(int n):
+    k = 0
+    i = 1
+    while (i < n):
+        i *= 2
+        k += 1
+
+    if i != n:
+        raise ValueError("n must be a power of 2!")
     
-    for i in range(n):
-        if len(M[i]) != n:
-            if data: return "not square matrix"
-            return False
+    q = n**2
 
-    #first compute a dictionary for parallelism
-    parallel = {}
-    for i in range(n):
-        parallel[i] = set()
-        #find all blocks parallel to i
-        for j in range(n):
-            if i == j: parallel[i].add(j)
-            else:
-                for l in range(n):
-                    if M[l][i]*M[l][j] != 0:
-                        #they intersect in point l
-                        break
-                else:
-                    #they are parallel
-                    parallel[i].add(j)
-    #now parallel[i] is a set of all blocks parallel to i
-    
-    #check parallellism is equivalence relation with at least 1 class of size >= 2
-    #and that there are at least 3 parallel classes
-    
-    #symmetry and reflexsivity is obvious; check transitivity
-    for b,s in parallel.items(): #for each block b
-        for b2 in s:#for each b2 parallel to b
-            for b3 in parallel[b2]: #for each b3 parallel to b2, check that it is parallel to b
-                if b3 not in s:
-                    #b || b2 and b2 || b3 but b not || b3
-                    if data: return "|| not transitive b1 %d, b2 %d, b3 %d"%(b,b2,b3)
-                    return False
+    def q(x,y): return x*x+x*y+y*y
+    F = GF(q)
 
-    #now we know transitivity
-    #compute a list of equivalence classes
-    parallelClasses = []
-    blocks = set(range(n))
-    while blocks:
-        b = blocks.pop()
-        Bclass = parallel[b]
-        parallelClasses.append(Bclass)
-        blocks = blocks.difference(Bclass) #remove Bclass from blocks
+    for (a,b) in F.subfields():
+        if a.order() == n:
+            H = a
+            break
+    else:
+        raise ValueError("something really bad")
+            
+    X = [ (x,y,1) for x in F for y in F if q(x,y) in H]
+    return X
 
-    #now we have a list of all parallel classes
-    #check that there are at least 3 parallel classes
-    r = len(parallelClasses)
-    if r < 3:
-        if data: return "there are less than 3 parallel classes"
-        return False
 
-    #check that there is some class with >= 2 blocks
-    #if it is a net, then each class will have s>= 2 blocks
-    s = len(parallelClasses[0])
-    if s < 2:
-        if data: return "class has less than 2 blocks"
-        return False
-    
-    #check each equivalence class partitions the point set
-    for pClass in parallelClasses:
-        for i in range(n):
-            #check point i is in some block in pClass
-            for block in pClass:
-                if M[i][block] == 1:
-                    break
-            else:#no block contains i
-                if data: return "class doesn't partition points"
-                return False
-
-    #check that 2 non parallel block intersects in mu points
-    mu = 0
-    for i in range(n):
-        for j in range(i+1,n):
-            #compute intersection fo blocks i and j
-            intersection = 0
-            for l in range(n):
-                if M[l][i]*M[l][j] == 1:
-                    #both are 1
-                    intersection += 1
-                    
-            if intersection != 0:
-                #then it should be mu (if we have a mu yet)
-                if mu == 0: mu = intersection
-                elif intersection != mu:
-                    if data: return "not all blocks intersect into %d points"%mu
-                    return False
-
-    #now we have that all blocks intersects in mu or 0 points
-    #so we have a net!
-    #now check ARPP: the number of block containing 2 distict points is 0 or lambda
-    #if it is symmetric, then we have lambda == mu. So we can assume so
-    for i in range(n):
-        for j in range(i+1,n):
-            #count number of blocks containing points i,j
-            blocks = 0
-            for l in range(n):
-                if M[i][l]*M[j][l] == 1:
-                    #both are 1
-                    blocks += 1
-            if blocks != 0:
-                if blocks != mu:
-                    if data: return "not all points are covered by %d blocks"%mu
-                    return False
-
-    #now we have an ARPP
-    #to see if it is symmetric we need to check that: r == s*mu i.e. num blocks == num points
-    #but we already have done so by checking that M was a square matrix
-    if data: return "(%d,%d,%d)"%(s,r,mu)
-    return True
-    
-
-def symmetric_net(p,i,j):
-
-    if j < 0 or i < 1 or p**(i+j) < 3 or not is_prime(p):
-        raise ValueError("invalid input")
-    
-
-    G = GF(p**(i+j))
-    elemsG = [x for x in G]
-    K = [ [ x*y for y in elemsG] for x in elemsG]
-    #K is multiplication table for G
-
-    #now we need to map G to (Z_p)^(i+j)
-    #so we need to find a basis for G
-    iso = {}#this is the map
-    dim = i+j
-    Fp = GF(p)
-
-    #send 0 to zero vector
-    v = [0]*dim
-    v = vector(Fp, v)
-    iso[0] = v
-
-    #we use 2 sets to find a basis for G
-    #spanBasis is the span of the basis found so far
-    #leftOver are the elements left over
-    leftOver = set(elemsG)
-    leftOver.remove(0)
-    spanBasis = set() #we don't include 0
-    index = 0 #number of vectors in the basis
-
-    while leftOver:
-        sig_check()
-        x = leftOver.pop()
-        spanX = [0]*(p-1)
-        for l in range(p-1):
-            spanX[l] = x+spanX[l-1] #when l is 0 spanX[-1] = 0
-            #create vector for spanX[l]
-            #we say x mapsto e_index
-            v = [0]*dim
-            v[index] = l+1
-            v = vector(Fp, v)
-            iso[spanX[l]] = v
-        #so spanX = [x,2x,3x,...,(p-1)x]
-        index += 1
-        #and we added those to map
-        leftOver = leftOver.difference(spanX)#remove spanX from leftOver
-
-        #now we need to combina spanX with spanBasis
-        toAdd = set()#new elements to add to spanBasis
-        for b in spanBasis:
-            for y in spanX:
-                sig_check()
-                z = b+y
-                iso[z] = iso[b]+iso[y]
-                toAdd.add(z)
-                leftOver.remove(z)
-        #now toAdd and spanX are all new elements
-        #leftOver doesn't contain them
-
-        spanBasis = spanBasis.union(toAdd)
-        spanBasis = spanBasis.union(spanX)
-        #go to next element
-
-    #now iso should map G to (Z_p)^(i+j)
-    #our epimorphism G to (Z_p)^i will be iso followed from trucation
-    H = [ [ iso[x][:i] for x in row] for row in K ]
-
-    def eqx(x,y):
-        if y == x: return 1
-        else: return 0
-
-    def Hx(M,x):
-        Hx = []
-        for row in M:
-            newRow = []
-            for y in row:
-                sig_check()
-                newRow.append(eqx(x,y))
-            Hx.append(newRow)
-        return Hx
-
-    V = VectorSpace(Fp,i)
-    elemsV = [ v for v in V]
-    A = [ [ v+w for w in elemsV] for v in elemsV ] #addition table for (Z_p)^i
-    
-    #now we need to build the incident matrix
-    size = p**(2*i+j) #size of M
-    n = len(H) # size of H
-    m = len(A)
-    M = [ [0]*size for l in range(size) ] #create empty M
-    for r in range(m):
-        for c in range(m):
-            sig_check()
-            Ha = Hx(H,A[r][c])
-            #now find coordinates for Ha in M
-            #(i,j) in Ha corresponds to (n*r+i,n*c+j)
-            for l1 in range(n):
-                for l2 in range(n):
-                    M[n*r+l1][n*c+l2] = Ha[l1][l2]
-
-    #finally we are done
-    return M
 
 def generalised_dodecagon(s,t):
     cdef int q = 0
