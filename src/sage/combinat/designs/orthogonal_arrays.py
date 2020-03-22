@@ -72,36 +72,30 @@ def symmetric_transversal_design(n, lmbda=1, check=True, existence=True):
     a transversal design with the same parameters.
     Equivalently is a resolvable transversal design with `k = \lambda*n`.
     """
-    if lmbda == 1:
-        return transversal_design(n,n,True,check,existence)
-
-    #for lambda != 1 we need to implement it
     
+    return transversal_design(n,n,lmbda=lmbfa, resolvable=True,check=check,existence=existence)   
 
-
-def transversal_design(k, n, resolvable=False, check=True, existence=False):
+def transversal_design(k, n,lmbda=1, resolvable=False, check=True, existence=False):
     r"""
-    Return a transversal design of parameters `k,n`.
+    Return a transversal design of parameters `k,n,\lambda`.
 
-    A transversal design of parameters `k, n` is a collection `\mathcal{S}` of
+    A transversal design of parameters `k, n,\lambda` is a collection `\mathcal{S}` of
     subsets of `V = V_1 \cup \cdots \cup V_k` (where the *groups* `V_i` are
     disjoint and have cardinality `n`) such that:
 
     * Any `S \in \mathcal{S}` has cardinality `k` and intersects each group on
-      exactly one element.
+      exactly one elements.
 
-    * Any two elements from distincts groups are contained in exactly one
+    * Any two elements from distincts groups are contained in exactly `lambda`
       element of `\mathcal{S}`.
-
-    More general definitions sometimes involve a `\lambda` parameter, and we
-    assume here that `\lambda=1`.
+.
 
     For more information on transversal designs, see
     `<http://mathworld.wolfram.com/TransversalDesign.html>`_.
 
     INPUT:
 
-    - `n,k` -- integers. If ``k is None`` it is set to the largest value
+    - `n,k,\lambda` -- integers. If ``k is None`` it is set to the largest value
       available.
 
     - ``resolvable`` (boolean) -- set to ``True`` if you want the design to be
@@ -332,14 +326,14 @@ def transversal_design(k, n, resolvable=False, check=True, existence=False):
     """
     if resolvable:
         if existence:
-            return orthogonal_array(k,n,resolvable=True,existence=True)
+            return orthogonal_array(k,n,lmbda=lmbda,resolvable=True,existence=True)
         else:
-            OA = orthogonal_array(k,n,resolvable=True,check=False)
+            OA = orthogonal_array(k,n,lmbda=lmbda,resolvable=True,check=False)
             # the call to TransversalDesign will sort the block so we can not
             # rely on the order *after* the call
             blocks = [[i*n+c for i,c in enumerate(B)] for B in OA]
             classes = [blocks[i:i+n] for i in range(0,n*n,n)]
-            TD = TransversalDesign(blocks,k,n,check=check,copy=False)
+            TD = TransversalDesign(blocks,k,n,lmbda,check=check,copy=False)
             TD._classes = classes
             return TD
 
@@ -351,12 +345,12 @@ def transversal_design(k, n, resolvable=False, check=True, existence=False):
                 return Infinity
             raise ValueError("there is no upper bound on k when 0<=n<=1")
 
-        k = orthogonal_array(None,n,existence=True)
+        k = orthogonal_array(None,n,lmbda,existence=True)
         if existence:
             return k
 
-    if existence and _OA_cache_get(k,n) is not None:
-        return _OA_cache_get(k,n)
+    if existence and _OA_cache_get(k,n,lmbda) is not None:
+        return _OA_cache_get(k,n,lmbda)
 
     if n == 1:
         if existence:
@@ -369,10 +363,10 @@ def transversal_design(k, n, resolvable=False, check=True, existence=False):
         raise EmptySetError("No Transversal Design exists when k>=n+2 if n>=2")
 
     # Section 6.6 of [Stinson2004]
-    elif orthogonal_array(k, n, existence=True) is not Unknown:
+    elif orthogonal_array(k, n,lmbda, existence=True) is not Unknown:
 
         # Forwarding non-existence results
-        if orthogonal_array(k, n, existence=True):
+        if orthogonal_array(k, n,lmbda, existence=True):
             if existence:
                 return True
         else:
@@ -380,7 +374,7 @@ def transversal_design(k, n, resolvable=False, check=True, existence=False):
                 return False
             raise EmptySetError("There exists no TD({},{})!".format(k,n))
 
-        OA = orthogonal_array(k,n, check = False)
+        OA = orthogonal_array(k,n, lmbda,check = False)
         TD = [[i*n+c for i,c in enumerate(l)] for l in OA]
 
     else:
@@ -388,7 +382,7 @@ def transversal_design(k, n, resolvable=False, check=True, existence=False):
             return Unknown
         raise NotImplementedError("I don't know how to build a TD({},{})!".format(k,n))
 
-    return TransversalDesign(TD,k,n,check=check)
+    return TransversalDesign(TD,k,n,lmbda,check=check)
 
 
 class TransversalDesign(GroupDivisibleDesign):
@@ -415,7 +409,7 @@ class TransversalDesign(GroupDivisibleDesign):
         sage: designs.transversal_design(None,36)
         Transversal Design TD(10,36)
     """
-    def __init__(self, blocks, k=None,n=None,check=True,**kwds):
+    def __init__(self, blocks, k=None,n=None,lbmda=1,check=True,**kwds):
         r"""
         Constructor of the class
 
@@ -437,7 +431,7 @@ class TransversalDesign(GroupDivisibleDesign):
         self._k = k
 
         if check:
-            assert is_transversal_design(blocks,k,n)
+            assert is_transversal_design(blocks,k,n,lbmda)
 
         GroupDivisibleDesign.__init__(self,
                                       k*n,
@@ -462,7 +456,7 @@ class TransversalDesign(GroupDivisibleDesign):
         return "Transversal Design TD({},{})".format(self._k,self._n)
 
 
-def is_transversal_design(B, k, n, verbose=False):
+def is_transversal_design(B, k, n,lmbda, verbose=False):
     r"""
     Check that a given set of blocks ``B`` is a transversal design.
 
@@ -748,7 +742,7 @@ def TD_product(k,TD1,n1,TD2,n2, check=True):
 
     return TD
 
-def orthogonal_array(k,n,t=2,resolvable=False, check=True,existence=False,explain_construction=False):
+def orthogonal_array(k,n,t=2,lmbda=1,resolvable=False, check=True,existence=False,explain_construction=False):
     r"""
     Return an orthogonal array of parameters `k,n,t`.
 
@@ -858,22 +852,22 @@ def orthogonal_array(k,n,t=2,resolvable=False, check=True,existence=False,explai
     if resolvable:
         assert t==2, "resolvable designs are only handled when t=2"
         if existence and k is not None:
-            return orthogonal_array(k+1,n,existence=True)
+            return orthogonal_array(k+1,n,lmbda=lmbda,existence=True)
         if k is None:
-            k = orthogonal_array(None,n,existence=True)-1
+            k = orthogonal_array(None,n,lmbda=lmbda,existence=True)-1
             if existence:
                 return k
-        OA = sorted(orthogonal_array(k+1,n,check=check))
+        OA = sorted(orthogonal_array(k+1,n,lmbda=lmbda,check=check))
         return [B[1:] for B in OA]
 
     # If k is set to None we find the largest value available
     if k is None:
         if existence:
-            return largest_available_k(n,t)
+            return largest_available_k(n,t,lmbda=lmbda)
         elif n == 0 or n == 1:
             raise ValueError("there is no upper bound on k when 0<=n<=1")
         else:
-            k = largest_available_k(n,t)
+            k = largest_available_k(n,t,lmbda=lmbda)
 
     if k < t:
         raise ValueError("undefined for k<t")
@@ -895,7 +889,7 @@ def orthogonal_array(k,n,t=2,resolvable=False, check=True,existence=False,explai
             return "Trivial construction"
         OA = [[0]*k]*n
 
-    elif k >= n+t:
+    elif k >= n+t and lmbda == 1:
         # When t=2 then k<n+t as it is equivalent to the existence of n-1 MOLS.
         # When t>2 the submatrix defined by the rows whose first t-2 elements
         # are 0s yields a OA with t=2 and k-(t-2) columns. Thus k-(t-2) < n+2,
