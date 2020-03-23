@@ -226,6 +226,14 @@ def difference_matrix(g,k,lmbda=1,existence=False,check=True):
             return False
         raise EmptySetError("No ({},{},{})-Difference Matrix exists as k(={})>g(={})".format(g,k,lmbda,k,g))
 
+    # Treat the case k=None
+    # (find the max k such that there exists a DM)
+    elif k is None:
+        i = 2
+        while difference_matrix(g=g,k=i,lmbda=lmbda,existence=True) is True:
+            i += 1
+        return i-1
+
     # Prime powers
     elif lmbda == 1 and is_prime_power(g):
         if k is None:
@@ -245,16 +253,7 @@ def difference_matrix(g,k,lmbda=1,existence=False,check=True):
     elif lmbda == 2 and is_prime_power(g):
         if k == 2*g:
             if existence: return True
-            (G,M) = prime_power_and_2_difference_matrix(g)
-
-    elif is_prime_power(lmbda):
-        (p,j) = is_prime_power(lmbda,get_data=True)
-        (q,i) = is_prime_power(g,get_data=True)
-        if p == q and p**(i+j) == k:
-            #we have a (p^i, p^(i+j), p^j) diff-matrix
-            if existence:
-                return True
-            (G,M) = prime_power_difference_matrix(p,i,j)
+            G,M = prime_power_and_2_difference_matrix(g)
 
     elif g == 2 and k == 2*lmbda:
         #a (2,2m,m) diff matrix is a hadamard matrix of order 2m
@@ -270,13 +269,15 @@ def difference_matrix(g,k,lmbda=1,existence=False,check=True):
         M = list(map( lambda r: list(map(lambda x: 0 if x == 1 else 1,r )), M ) )
         G = FiniteField(2)
 
-    # Treat the case k=None
-    # (find the max k such that there exists a DM)
-    elif k is None:
-        i = 2
-        while difference_matrix(g=g,k=i,lmbda=lmbda,existence=True) is True:
-            i += 1
-        return i-1
+    elif g*lmbda == k and is_prime_power(lmbda) and (lmbda%g)*(g%lmbda) == 0 :
+        #we have a (p^i, p^(i+j), p^j) diff-matrix
+        (p,j) = is_prime_power(lmbda,get_data=True)
+        (q,i) = is_prime_power(g,get_data=True)
+        assert (p == q and p**(i+j) == k)
+            
+        if existence:
+            return True
+        G,M = prime_power_difference_matrix(p,i,j)
 
     # From the database
     elif (g,lmbda) in DM_constructions and DM_constructions[g,lmbda][0]>=k:
@@ -307,7 +308,20 @@ def difference_matrix(g,k,lmbda=1,existence=False,check=True):
 
 def prime_power_difference_matrix(p,i,j):
     r"""
-    Return a `(p^i, p^(i+j), p^j)` difference matrix
+    Return a `(p^i, p^(i+j), p^j)` difference matrix where `p` is a prime.
+
+    INPUT:
+
+    - ``p`` -- (integer) a prime number
+
+    - ``i,j`` -- (integer)
+
+    EXAMPLES::
+
+
+    TESTS::
+
+    
     """
 
     from sage.modules.free_module_element import vector
@@ -380,7 +394,16 @@ def prime_power_difference_matrix(p,i,j):
 
 def prime_power_and_2_difference_matrix(q):
     r"""
-    Return a `(q,2q,2)` difference matrix
+    Return a `(q,2q,2)` difference matrix where `q` is a prime power.
+
+    INPUT:
+
+    - ``q`` -- (integer) a prime power
+
+    EXAMPLES::
+
+    TESTS::
+
     """
 
     if q % 2 == 0:

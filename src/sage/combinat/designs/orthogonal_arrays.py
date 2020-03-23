@@ -64,11 +64,11 @@ from .group_divisible_designs import GroupDivisibleDesign
 from .designs_pyx import _OA_cache_set, _OA_cache_get, _OA_cache_construction_available
 
 
-def symmetric_transversal_design(n, lmbda=1, check=True, existence=True):
+def symmetric_net(n, lmbda=1, check=True, existence=True):
     r"""
-    Return a symmetric transversal design of parameters `n,\lambda`.
+    Return a symmetric net of parameters `n,\lambda`.
 
-    A symmetric transversal design is a transversal design whose dual is
+    A symmetric net is a transversal design whose dual is
     a transversal design with the same parameters.
     Equivalently is a resolvable transversal design with `k = \lambda*n`.
     """
@@ -145,7 +145,7 @@ def transversal_design(k, n,lmbda=1, resolvable=False, check=True, existence=Fal
     EXAMPLES::
 
         sage: TD = designs.transversal_design(5,5); TD
-        Transversal Design TD(5,5)
+        Transversal Design TD_1(5,5)
         sage: TD.blocks()
         [[0, 5, 10, 15, 20], [0, 6, 12, 18, 24], [0, 7, 14, 16, 23],
          [0, 8, 11, 19, 22], [0, 9, 13, 17, 21], [1, 5, 14, 18, 22],
@@ -338,50 +338,37 @@ def transversal_design(k, n,lmbda=1, resolvable=False, check=True, existence=Fal
             return TD
 
     # Is k is None we find the largest available
+    # not sure about this when lambda >1
     if k is None:
-        if n == 0 or n == 1:
+        if n == 0 or (n == 1 and lmbda == 1):
             if existence:
                 from sage.rings.infinity import Infinity
                 return Infinity
             raise ValueError("there is no upper bound on k when 0<=n<=1")
 
-        k = orthogonal_array(None,n,lmbda,existence=True)
+        k = orthogonal_array(None,n,lmbda=lmbda,existence=True)
         if existence:
             return k
 
-    if existence and _OA_cache_get(k,n,lmbda) is not None:
-        return _OA_cache_get(k,n,lmbda)
+    if existence and _OA_cache_get(k,n) is not None and lmbda == 1:
+        return _OA_cache_get(k,n)
 
-    if n == 1:
-        if existence:
-            return True
-        TD = [list(range(k))]
+    possible = orthogonal_array(k, n, lmbda=lmbda, existence=True)
 
-    elif k >= n+2:
-        if existence:
-            return False
-        raise EmptySetError("No Transversal Design exists when k>=n+2 if n>=2")
+    if existence:
+        return possible
 
-    # Section 6.6 of [Stinson2004]
-    elif orthogonal_array(k, n,lmbda, existence=True) is not Unknown:
-
-        # Forwarding non-existence results
-        if orthogonal_array(k, n,lmbda, existence=True):
-            if existence:
-                return True
-        else:
-            if existence:
-                return False
-            raise EmptySetError("There exists no TD({},{})!".format(k,n))
-
-        OA = orthogonal_array(k,n, lmbda,check = False)
-        TD = [[i*n+c for i,c in enumerate(l)] for l in OA]
-
-    else:
-        if existence:
-            return Unknown
+    if possible is Unknown:
         raise NotImplementedError("I don't know how to build a TD({},{})!".format(k,n))
 
+    elif not possible:
+        raise EmptySetError("There exists no TD({},{})!".format(k,n))
+
+    #else build it!
+    # Section 6.6 of [Stinson2004]
+    OA = orthogonal_array(k,n,lmbda=lmbda,check = False)
+    TD = [[i*n+c for i,c in enumerate(l)] for l in OA]
+    
     return TransversalDesign(TD,k,n,lmbda,check=check)
 
 
@@ -403,20 +390,20 @@ class TransversalDesign(GroupDivisibleDesign):
     EXAMPLES::
 
         sage: designs.transversal_design(None,5)
-        Transversal Design TD(6,5)
+        Transversal Design TD_1(6,5)
         sage: designs.transversal_design(None,30)
-        Transversal Design TD(6,30)
+        Transversal Design TD_1(6,30)
         sage: designs.transversal_design(None,36)
-        Transversal Design TD(10,36)
+        Transversal Design TD_1(10,36)
     """
-    def __init__(self, blocks, k=None,n=None,lbmda=1,check=True,**kwds):
+    def __init__(self, blocks, k=None,n=None,lmbda=1,check=True,**kwds):
         r"""
         Constructor of the class
 
         EXAMPLES::
 
             sage: designs.transversal_design(None,5)
-            Transversal Design TD(6,5)
+            Transversal Design TD_1(6,5)
         """
         from math import sqrt
         if k is None:
@@ -429,14 +416,16 @@ class TransversalDesign(GroupDivisibleDesign):
 
         self._n = n
         self._k = k
+        self._lmbda = lmbda
 
         if check:
-            assert is_transversal_design(blocks,k,n,lbmda)
+            assert is_transversal_design(blocks,k,n,lmbda)
 
         GroupDivisibleDesign.__init__(self,
                                       k*n,
                                       [list(range(i*n,(i+1)*n)) for i in range(k)],
                                       blocks,
+                                      lambd=lmbda,
                                       check=False,
                                       **kwds)
 
@@ -447,16 +436,16 @@ class TransversalDesign(GroupDivisibleDesign):
         EXAMPLES::
 
             sage: designs.transversal_design(None,5)
-            Transversal Design TD(6,5)
+            Transversal Design TD_1(6,5)
             sage: designs.transversal_design(None,30)
-            Transversal Design TD(6,30)
+            Transversal Design TD_1(6,30)
             sage: designs.transversal_design(None,36)
-            Transversal Design TD(10,36)
+            Transversal Design TD_1(10,36)
         """
-        return "Transversal Design TD({},{})".format(self._k,self._n)
+        return "Transversal Design TD_{}({},{})".format(self._lmbda,self._k,self._n)
 
 
-def is_transversal_design(B, k, n,lmbda, verbose=False):
+def is_transversal_design(B, k, n,lmbda=1, verbose=False):
     r"""
     Check that a given set of blocks ``B`` is a transversal design.
 
@@ -467,7 +456,7 @@ def is_transversal_design(B, k, n,lmbda, verbose=False):
 
     - ``B`` -- the list of blocks
 
-    - ``k, n`` -- integers
+    - ``k, n, \lambda`` -- integers
 
     - ``verbose`` (boolean) -- whether to display information about what is
       going wrong.
@@ -487,7 +476,7 @@ def is_transversal_design(B, k, n,lmbda, verbose=False):
         sage: is_transversal_design(TD, 4, 4)
         False
     """
-    return is_orthogonal_array([[x%n for x in R] for R in B],k,n,verbose=verbose)
+    return is_orthogonal_array([[x%n for x in R] for R in B],k,n,lmbda=lmbda,verbose=verbose)
 
 def wilson_construction(OA,k,r,m,u,check=True,explain_construction=False):
     r"""
@@ -744,15 +733,12 @@ def TD_product(k,TD1,n1,TD2,n2, check=True):
 
 def orthogonal_array(k,n,t=2,lmbda=1,resolvable=False, check=True,existence=False,explain_construction=False):
     r"""
-    Return an orthogonal array of parameters `k,n,t`.
+    Return an orthogonal array of parameters `k,n,t,\lambda`.
 
     An orthogonal array of parameters `k,n,t` is a matrix with `k` columns
     filled with integers from `[n]` in such a way that for any `t` columns, each
-    of the `n^t` possible rows occurs exactly once. In
+    of the `n^t` possible rows occurs exactly `\lambda` times. In
     particular, the matrix has `n^t` rows.
-
-    More general definitions sometimes involve a `\lambda` parameter, and we
-    assume here that `\lambda=1`.
 
     An orthogonal array is said to be *resolvable* if it corresponds to a
     resolvable transversal design (see
@@ -769,6 +755,8 @@ def orthogonal_array(k,n,t=2,lmbda=1,resolvable=False, check=True,existence=Fals
     - ``n`` -- (integer) number of symbols
 
     - ``t`` -- (integer; default: 2) -- strength of the array
+
+    - ``\lambda`` -- (integer; default: 1) -- index of the array
 
     - ``resolvable`` (boolean) -- set to ``True`` if you want the design to be
       resolvable. The `n` classes of the resolvable design are obtained as the
@@ -864,15 +852,15 @@ def orthogonal_array(k,n,t=2,lmbda=1,resolvable=False, check=True,existence=Fals
     if k is None:
         if existence:
             return largest_available_k(n,t,lmbda=lmbda)
-        elif n == 0 or n == 1:
+        elif n == 0 or (n == 1 and lmbda == 1):
             raise ValueError("there is no upper bound on k when 0<=n<=1")
         else:
             k = largest_available_k(n,t,lmbda=lmbda)
 
     if k < t:
         raise ValueError("undefined for k<t")
-
-    if existence and _OA_cache_get(k,n) is not None and t == 2:
+        
+    if existence and _OA_cache_get(k,n) is not None and t == 2 and lmbda == 1:
         return _OA_cache_get(k,n)
 
     from .block_design import projective_plane
@@ -882,7 +870,24 @@ def orthogonal_array(k,n,t=2,lmbda=1,resolvable=False, check=True,existence=Fals
 
     may_be_available = _OA_cache_construction_available(k,n) is not False
 
-    if n <= 1:
+    if lmbda != 1:
+        #only constructions from difference matrices are available at the moment
+        possible = difference_matrix(n,k-1,lmbda,existence=True)
+        if possible:
+            if existence:
+                return True
+            if explain_construction:
+                return "from a ({},{})-difference matrix".format(n,k-1)
+            G,M = difference_matrix(n,k-1)
+            OA = OA_from_quasi_difference_matrix(M,G,add_col=True)
+        else:
+            if existence:
+                return Unknown
+            elif explain_construction:
+                return "No idea"
+            raise NotImplementedError("I don't know how to build an OA({},{})!".format(k,n))
+
+    elif n <= 1:
         if existence:
             return True
         if explain_construction:
@@ -1023,7 +1028,7 @@ def orthogonal_array(k,n,t=2,lmbda=1,resolvable=False, check=True,existence=Fals
 
     return OA
 
-def largest_available_k(n,t=2):
+def largest_available_k(n,t=2,lmbda=1):
     r"""
     Return the largest `k` such that Sage can build an `OA(k,n)`.
 
@@ -1032,6 +1037,8 @@ def largest_available_k(n,t=2):
     - ``n`` (integer)
 
     - ``t`` -- (integer; default: 2) -- strength of the array
+
+    - ``\lambda`` -- (integer; default: 1) -- index of the array
 
     EXAMPLES::
 
@@ -1055,10 +1062,13 @@ def largest_available_k(n,t=2):
         raise ValueError("n(={}) was expected to be >=0".format(n))
     if t<0:
         raise ValueError("t(={}) was expected to be >=0".format(t))
-    if n == 0 or n == 1:
+    if lmbda<0:
+        raise ValueError("lmbda(={}) was expected to be >=0".format(lmbda))
+    
+    if n == 0 or (n == 1 and lmbda== 1):
         from sage.rings.infinity import Infinity
         return Infinity
-    elif t == 2:
+    elif t == 2 and lmbda == 1:
         if projective_plane(n,existence=True) is True:
             return n+1
         else:
@@ -1068,7 +1078,7 @@ def largest_available_k(n,t=2):
     else:
         k=t-1
 
-    while orthogonal_array(k+1,n,t,existence=True) is True:
+    while orthogonal_array(k+1,n,t,lmbda,existence=True) is True:
         k += 1
     return k
 
@@ -2093,13 +2103,13 @@ class OAMainFunctions():
     largest_available_k  = staticmethod(largest_available_k)
 
     @staticmethod
-    def explain_construction(k,n,t=2):
+    def explain_construction(k,n,t=2,lmbda=1):
         r"""
         Return a string describing how to builds an `OA(k,n)`
 
         INPUT:
 
-        - ``k,n,t`` (integers) -- parameters of the orthogonal array.
+        - ``k,n,t,\lambda`` (integers) -- parameters of the orthogonal array.
 
         EXAMPLES::
 
@@ -2108,27 +2118,24 @@ class OAMainFunctions():
             sage: designs.orthogonal_arrays.explain_construction(10,154)
             'the database contains a (137,10;1,0;17)-quasi difference matrix'
         """
-        return orthogonal_array(k,n,t,explain_construction=True)
+        return orthogonal_array(k,n,t,lmbda,explain_construction=True)
 
     @staticmethod
-    def build(k,n,t=2,resolvable=False):
+    def build(k,n,t=2,lmbda=1,resolvable=False):
         r"""
         Return an `OA(k,n)` of strength `t`
 
         An orthogonal array of parameters `k,n,t` is a matrix with `k`
         columns filled with integers from `[n]` in such a way that for any
         `t` columns, each of the `n^t` possible rows occurs exactly
-        once. In particular, the matrix has `n^t` rows.
-
-        More general definitions sometimes involve a `\lambda` parameter, and we
-        assume here that `\lambda=1`.
+        ``\lambda`` times. In particular, the matrix has `n^t` rows.
 
         For more information on orthogonal arrays, see
         :wikipedia:`Orthogonal_array`.
 
         INPUT:
 
-        - ``k,n,t`` (integers) -- parameters of the orthogonal array.
+        - ``k,n,t,\lambda`` (integers) -- parameters of the orthogonal array.
 
         - ``resolvable`` (boolean) -- set to ``True`` if you want the design to be
           resolvable. The `n` classes of the resolvable design are obtained as the
@@ -2150,16 +2157,16 @@ class OAMainFunctions():
             sage: OA_7_50 = designs.orthogonal_arrays.build(7,50)      # indirect doctest
 
         """
-        return orthogonal_array(k,n,t,resolvable=resolvable)
+        return orthogonal_array(k,n,t,lmbda,resolvable=resolvable)
 
     @staticmethod
-    def exists(k,n,t=2):
+    def exists(k,n,t=2,lmbda=1):
         r"""
         Return the existence status of an `OA(k,n)`
 
         INPUT:
 
-        - ``k,n,t`` (integers) -- parameters of the orthogonal array.
+        - ``k,n,t,\lambda`` (integers) -- parameters of the orthogonal array.
 
         .. WARNING::
 
@@ -2179,16 +2186,16 @@ class OAMainFunctions():
             sage: designs.orthogonal_arrays.exists(7,6) # indirect doctest
             False
         """
-        return orthogonal_array(k,n,t,existence=True)
+        return orthogonal_array(k,n,t,lmbda,existence=True)
 
     @staticmethod
-    def is_available(k,n,t=2):
+    def is_available(k,n,t=2,lmbda=1):
         r"""
         Return whether Sage can build an `OA(k,n)`.
 
         INPUT:
 
-        - ``k,n,t`` (integers) -- parameters of the orthogonal array.
+        - ``k,n,t,\lambda`` (integers) -- parameters of the orthogonal array.
 
         .. SEEALSO::
 
@@ -2201,4 +2208,4 @@ class OAMainFunctions():
             sage: designs.orthogonal_arrays.is_available(4,6) # indirect doctest
             False
         """
-        return orthogonal_array(k,n,t,existence=True) is True
+        return orthogonal_array(k,n,t,lmbda,existence=True) is True
