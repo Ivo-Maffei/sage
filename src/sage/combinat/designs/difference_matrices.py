@@ -301,7 +301,7 @@ def difference_matrix(g,k,lmbda=1,existence=False,check=True):
             return Unknown
         raise NotImplementedError("I don't know how to build a ({},{},{})-Difference Matrix!".format(g,k,lmbda))
 
-    if check and not is_difference_matrix(M,G,k,lmbda,1):
+    if check and not is_difference_matrix(M,G,k,lmbda,True):
         raise RuntimeError("Sage built something which is not a ({},{},{})-DM!".format(g,k,lmbda))
 
     return G,M
@@ -320,7 +320,17 @@ def prime_power_difference_matrix(p,i,j):
 
 
     TESTS::
-
+    
+        sage: from sage.combinat.designs.difference_matrices import prime_power_difference_matrix, is_difference_matrix
+        sage: G,M = prime_power_difference_matrix(2,4,5)
+        sage: is_difference_matrix(M,G,2^9,2^5)
+        True
+        sage: G,M = prime_power_difference_matrix(3,1,4)
+        sage: is_difference_matrix(M,G,3^5,3^4)
+        True
+        sage: G,M = prime_power_difference_matrix(5,2,1)
+        sage: is_difference_matrix(M,G,5^3,5)
+        True
     
     """
 
@@ -384,7 +394,7 @@ def prime_power_difference_matrix(p,i,j):
         #go to next element
 
     #now iso should map G to (Z_p)^(i+j)
-    #our epimorphism G to (Z_p)^i will be iso followed from trucation
+    #our epimorphism G to (Z_p)^i will be iso followed by trucation
     H = [ [ iso[x][:i] for x in row] for row in K ]
 
     #So H is Over (Z_p)^i
@@ -403,6 +413,20 @@ def prime_power_and_2_difference_matrix(q):
     EXAMPLES::
 
     TESTS::
+
+        sage: from sage.combinat.designs.difference_matrices import prime_power_and_2_difference_matrix, is_difference_matrix
+        sage: G,M = prime_power_and_2_difference_matrix(2)
+        sage: is_difference_matrix(M,G,4,2)
+        True
+        sage: G,M = prime_power_and_2_difference_matrix(8)
+        sage: is_difference_matrix(M,G,16,2)
+        True
+        sage: G,M = prime_power_and_2_difference_matrix(9)
+        sage: is_difference_matrix(M,G,18,2)
+        True
+        sage: G,M = prime_power_and_2_difference_matrix(5)
+        sage: is_difference_matrix(M,G,10,2)
+        True
 
     """
 

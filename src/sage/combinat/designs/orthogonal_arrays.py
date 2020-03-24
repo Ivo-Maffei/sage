@@ -71,9 +71,25 @@ def symmetric_net(n, lmbda=1, check=True, existence=True):
     A symmetric net is a transversal design whose dual is
     a transversal design with the same parameters.
     Equivalently is a resolvable transversal design with `k = \lambda*n`.
+
+    INPUT:
+
+    - ``n,\lambda`` -- integers
+
+    - ``check`` -- boolean. If true it checks the output before returning it.
+      This is expected to be useless, so to gain speed set it to ``False``
+      Set to ``True`` by default
+
+    - ``existence`` -- bolean. Instead of returnig a symmetric net, return:
+      - ``True`` -- such a net can be constructed by Sage
+      - ``False`` -- no such a net exists
+      - ``Unknown`` -- Sage does not know how to build such a design
+        so such design may or may not exist
+
+    EXAMPLES::
     """
     
-    return transversal_design(n,n,lmbda=lmbfa, resolvable=True,check=check,existence=existence)   
+    return transversal_design(n*lmbda,n,lmbda=lmbda, resolvable=True,check=check,existence=existence)   
 
 def transversal_design(k, n,lmbda=1, resolvable=False, check=True, existence=False):
     r"""
@@ -738,7 +754,7 @@ def orthogonal_array(k,n,t=2,lmbda=1,resolvable=False, check=True,existence=Fals
     An orthogonal array of parameters `k,n,t` is a matrix with `k` columns
     filled with integers from `[n]` in such a way that for any `t` columns, each
     of the `n^t` possible rows occurs exactly `\lambda` times. In
-    particular, the matrix has `n^t` rows.
+    particular, the matrix has `\lambda n^t` rows.
 
     An orthogonal array is said to be *resolvable* if it corresponds to a
     resolvable transversal design (see
@@ -872,20 +888,37 @@ def orthogonal_array(k,n,t=2,lmbda=1,resolvable=False, check=True,existence=Fals
 
     if lmbda != 1:
         #only constructions from difference matrices are available at the moment
+        #each diff matrix gives rise to 2 possible OA
         possible = difference_matrix(n,k-1,lmbda,existence=True)
-        if possible:
+        possible2 = False if possible is True else difference_matrix(n,k,lmbda,existence=True)
+        if possible is True:
             if existence:
                 return True
             if explain_construction:
-                return "from a ({},{})-difference matrix".format(n,k-1)
-            G,M = difference_matrix(n,k-1)
+                return "from a ({},{},{})-difference matrix".format(n,k-1,lmbda)
+            G,M = difference_matrix(n,k-1,lmbda)
             OA = OA_from_quasi_difference_matrix(M,G,add_col=True)
+        elif possible2 is True:
+            if existence:
+                return True
+            if explain_construction:
+                return "from a ({},{},{})-difference matrix".format(n,k,lmbda)
+            G,M = difference_matrix(n,k,lmbda)
+            OA = OA_from_quasi_difference_matrix(M,G,add_col=False)             
+        elif (possible is False) and (possible2 is False):
+            if existence:
+                return False
+            raise EmptySetError("There exists no OA_{}({},{})".format(lmbda,k,n))
         else:
             if existence:
                 return Unknown
             elif explain_construction:
                 return "No idea"
-            raise NotImplementedError("I don't know how to build an OA({},{})!".format(k,n))
+            raise NotImplementedError("I don't know how to build an OA_{}({},{})!".format(lmbda,k,n))
+        if check:
+             assert is_orthogonal_array(OA,k,n,t,lmbda,verbose=1), "Sage built an incorrect OA_{}({},{}) O_o".format(lmbda,k,n)
+        return OA
+            
 
     elif n <= 1:
         if existence:
@@ -894,7 +927,7 @@ def orthogonal_array(k,n,t=2,lmbda=1,resolvable=False, check=True,existence=Fals
             return "Trivial construction"
         OA = [[0]*k]*n
 
-    elif k >= n+t and lmbda == 1:
+    elif k >= n+t:
         # When t=2 then k<n+t as it is equivalent to the existence of n-1 MOLS.
         # When t>2 the submatrix defined by the rows whose first t-2 elements
         # are 0s yields a OA with t=2 and k-(t-2) columns. Thus k-(t-2) < n+2,
@@ -1006,6 +1039,16 @@ def orthogonal_array(k,n,t=2,lmbda=1,resolvable=False, check=True,existence=Fals
         G,M = difference_matrix(n,k-1)
         OA = OA_from_quasi_difference_matrix(M,G,add_col=True)
 
+    elif may_be_available and difference_matrix(n,k,existence=True) is True:
+        _OA_cache_set(k,n,True)
+        if existence:
+            return True
+        if explain_construction:
+            return "from a ({},{},1)-difference matrix".format(n,k)
+        print("hey")
+        G,M = difference_matrix(n,k)
+        OA = OA_from_quasi_difference_matrix(M,G,add_col=False)
+        
     elif may_be_available and find_recursive_construction(k,n):
         _OA_cache_set(k,n,True)
         if existence:
@@ -1811,7 +1854,7 @@ def OA_from_quasi_difference_matrix(M,G,add_col=True,fill_hole=True):
     # with integers. Missing values are also handled.
     new_M = []
     for line in zip(*M):
-        inf = Gn
+        inf = Gn 
         new_line = []
         for x in line:
             if x is None:
@@ -1822,7 +1865,8 @@ def OA_from_quasi_difference_matrix(M,G,add_col=True,fill_hole=True):
         new_M.append(new_line)
 
     if add_col:
-        new_M.append([i//Gn for i in range(len(new_line))])
+        nR = len(M)
+        new_M.append([i//nR for i in range(len(new_line))])
 
     # new_M = transpose(new_M)
     new_M = list(zip(*new_M))
@@ -2162,7 +2206,7 @@ class OAMainFunctions():
     @staticmethod
     def exists(k,n,t=2,lmbda=1):
         r"""
-        Return the existence status of an `OA(k,n)`
+        Return the existence status of an `OA_\lambda(k,n)`
 
         INPUT:
 

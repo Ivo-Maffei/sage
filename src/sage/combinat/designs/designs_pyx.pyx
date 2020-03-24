@@ -137,23 +137,23 @@ def is_orthogonal_array(OA, int k, int n, int t=2, int lmbda=1, verbose=False, t
     bitset_init(seen, nRows)
 
     for i in range(k): # For any column C1
-        C1 = OAc+i*n2
+        C1 = OAc+i*nRows
         for j in range(i+1,k): # For any column C2 > C1
-            C2 = OAc+j*n2
+            C2 = OAc+j*nRows
             bitset_set_first_n(seen, 0) # No pair has been seen yet
             for l in range(nRows):
                 #count how many times (C1[l],C2[l]) was seen
                 l2 = 0
                 while bitset_in(seen, lmbda*(n*C1[l]+C2[l])+l2):
                     l2 +=1
-                if l2 > lmbda: #the pair (C1[l],C2[l]) has already appeared lmbda times
+                if l2 > lmbda+1: #the pair (C1[l],C2[l]) has already appeared lmbda times
                     sig_free(OAc)
                     bitset_free(seen)
                     if verbose:
                         print({"OA" : "In columns {} and {} the pair ({},{}) appears more than {} times".format(i,j,C1[l],C2[l],lmbda),
                                "MOLS": "In columns {} and {} the pair ({},{}) appears more than once".format(i,j,C1[l],C2[l])}[terminology])
                     return False
-                #other wise:
+                #otherwise:
                 bitset_add(seen,lmbda*(n*C1[l]+C2[l])+l2)
 
             if bitset_len(seen) != nRows: # Have we seen all pairs ?
