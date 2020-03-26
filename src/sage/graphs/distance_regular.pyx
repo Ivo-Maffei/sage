@@ -261,46 +261,9 @@ def graph_from_two_design( D ):
     G = Graph(edges,format="list_of_edges")
     return G
 
-#def symmetric_net_incident_graph(p,i,j):
-   # M = symmetric_net(p,i,j)
-   # n = len(M)
-   # edges = []
-   # for point in range(n):
-   #     for block in range(n):
-   #         sig_check()
-   #         if M[point][block] == 1:
-   #             #point i is in block j
-   #             edges.append( ( ('p',point),('b',block) ) )
-   #             
-   # G = Graph(edges,format='list_of_edges')
-   # G.name("Incident graph of symmetric (%d,%d)-net"%(p**i,p**j))
-   # return G
-
-def complete_arc(int n):
-    k = 0
-    i = 1
-    while (i < n):
-        i *= 2
-        k += 1
-
-    if i != n:
-        raise ValueError("n must be a power of 2!")
-    
-    q = n**2
-
-    def q(x,y): return x*x+x*y+y*y
-    F = GF(q)
-
-    for (a,b) in F.subfields():
-        if a.order() == n:
-            H = a
-            break
-    else:
-        raise ValueError("something really bad")
-            
-    X = [ (x,y,1) for x in F for y in F if q(x,y) in H]
-    return X
-
+def symmetric_net_incident_graph(m,u):
+   SN = Sage_Designs.symmetric_net(m,u)
+   return SN.incidence_graph()
 
 
 def generalised_dodecagon(s,t):
@@ -2544,63 +2507,3 @@ def graph_with_intersection_array( list arr ):
         return dist_reg_near_polygon(arr)
 
     raise ValueError("unknown graph")
-
-
-
-#silly attempt at orthogonal arrays
-def orthogonal_array(int v, int k, int l):
-    r"""
-    We need to return a `l*v^2 x k` matrix `D` s.t. 
-    within every 2 columes of `D`, every pair `(i,j) \in {0,...,v-1}^2`
-    is contained exactly `l` times
-    """
-
-    #each colums is a permutation of the same set of numbers
-    #try recusion to backtrack permutations
-    #we use a function add_colum that takes a matrix and adds a good comlumn if possible or returns None
-
-    #first column can be arbitrary
-    col = [i for i in range(v) ]
-    for i in range(l-1):
-        col = col + col
-
-    #now col is [0,1,2...,v-1,0,1,...,v-1,.... ] l times
-    D = [col]
-    D = make_orthogonal_array(D,v,k-1,l)
-    if D is None:
-        return False
-    else: return D
-
-def make_orthogonal_array(D,v,k,l):
-    r"""
-    this is the recursive function used for backtracking
-    we take D and add k columns to it to make it an orthogonal array
-    """
-
-    #base case
-    if k == 0:
-        return D
-
-    #otherwise try all possible columns
-    for col in generate_columns(D,v,l):
-        D.append(col)
-        H = make_orthogonal_array(D,v,k-1,l)
-        if H is not None:
-            return H
-        else:
-            D = D[:-1]
-        #try again
-    #fail to succeed
-    D = D[:-1]
-    return None
-
-def generate_columns(D,v,l):
-    r"""
-    generator function that should generate all possible columns
-    that can be added to D
-
-    we need to find a column c s.t. for any a in D every pair (i,j) in {0,...,v-1}^2 appears l times
-    so for every i in {0,...,v-1} we need to find a permutation of {0,...,v-1}^l s.t.
-    each (i,j) appears l times
-    """
-    
