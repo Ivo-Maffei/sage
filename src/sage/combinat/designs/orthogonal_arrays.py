@@ -64,7 +64,115 @@ from .group_divisible_designs import GroupDivisibleDesign
 from .designs_pyx import _OA_cache_set, _OA_cache_get, _OA_cache_construction_available
 
 
-def symmetric_net(n, lmbda=1, check=True, existence=True):
+def my_is_transversal_design(TD,k,g,lmbda,verbose=True):
+    assert lmbda != 0
+
+    if TD.num_points() != k*g:
+        if verbose:
+            print("wrong number of points")
+        return False
+
+    if verbose: print("correct num points")
+
+    for b in TD.block_sizes():
+        if b != k:
+            if verbose: print("block with wrong length: {}".format(b))
+            return False
+
+    if verbose: print("correct block length")
+
+    #assuming TD is a TD, then we construct
+    #a partition of TD.ground_set()
+    #then check is that partition is correct
+    b = TD.blocks()[0]
+    groups = [ [i] for i in b]
+    #each block intersects each point class exactly once
+    points = set(TD.ground_set())
+    points = points.difference(b) #remove already sorted points
+    while points:
+        p = points.pop()
+        for gr in groups:
+            #is p in g?
+            p2 = gr[0]
+            #is |(p,p2)| == 0? -> yes!
+            for b in TD.blocks()[1:]:
+                if (p in b) and (p2 in b):
+                    #|(p,p2)| > 0
+                    break
+            else:
+                #we didn't break!
+                #so p and p2 are in same group
+                gr.append(p)
+                break
+        else:
+            #we didn't break
+            #so p is in a new group
+            #this is wrong
+            if verbose: print("{} is not in any group {}".format(p,groups))
+            return False
+
+    if verbose: print("found partition, checking if valid")
+    
+    #if we reach this point, then we have found a partition
+    #we should check that the partition is good
+    #i.e. p,q in same group => |(p,q)|= 0
+    #     p,q in different groups => |(p,q)| = lambda
+    #     each block intersects each group
+    #     each group has size g
+    for gr in groups:
+        if len(gr) != g:
+            if verbose: print("group has wrong size {}".format(gr))
+            return False
+
+    if verbose: print("parition has valid group length")
+
+    #check first and third at once
+    for b in TD.blocks():
+        groupsIndex = set(range(k))
+        for x in b:
+            for i in groupsIndex:
+                if x in groups[i]:
+                    groupsIndex.remove(i)
+                    break
+            else:
+                #x is in no group left!
+                #so x is in a group already taken
+                if verbose: print("in block {} 2 points are in same group, {} is one of those 2".format(b,x))
+                return False
+            
+    if verbose: print("each block intersects each group and equivalent points are not joint by block")
+
+    #now we need to check condition 2 involving lambda
+    count = {}#dictionary (p,q) => |(p,q)|
+    for b in TD.blocks():
+        #go through all pairs
+        for i in range(k):
+            for j in range(i+1,k):
+                if frozenset([b[i],b[j]]) not in count:
+                    count[frozenset([b[i],b[j]])] = 1
+                else:
+                    count[frozenset([b[i],b[j]])] += 1
+    #now count send all pairs found to how many time we saw it
+
+    #does all p,q in distinct groups appear in count?
+    #there are k choose 2 * g^2 possible pairs from distinct groups (there are k groups)
+    if len(count) != (k*(k-1))//2 * g*g:
+        if verbose: print("some pair of points in different groups has |(p,q)|=0")
+        return False
+
+    if verbose: print("all pairs of non-equivalent points are covered by some block")
+    
+    for pair,val in iteritems(count):
+        if val != lmbda:
+            if verbose: print("pair {} appers {} times".format(pair,val))
+            return False
+
+    if verbose: print("all pairs of non-equivalent points are covered by lambda blocks")
+    return True
+        
+
+
+def symmetric_net(n, lmbda=1, check=True, existence=False):
     r"""
     Return a symmetric net of parameters `n,\lambda`.
 
@@ -87,6 +195,38 @@ def symmetric_net(n, lmbda=1, check=True, existence=True):
         so such design may or may not exist
 
     EXAMPLES::
+    
+        sage: from sage.combinat.designs.orthogonal_arrays import is_transversal_design
+        sage: SN = designs.symmetric_net(25,2)
+        sage: SN.is_resolvable()
+        True
+        sage: is_transversal_design(SN,50,25,2)
+        True
+        sage: from sage.combinat.designs.designs_pyx import is_group_divisible_design
+        sage: from sage.combinat.designs.orthogonal_arrays import find_groups
+        sage: SND = SN.dual()
+        sage: groups = find_groups(SND,50,25)
+        sage: is_group_divisible_design(groups,SND,50*25,G=[25],K=[50],lambd=2)
+        True
+
+    TESTS::
+
+        sage: SN = designs.symmetric_net(8,4)
+        sage: SN.is_resolvable()
+        True
+
+        sage: designs.symmetric_net(25,125,existence=True)
+        True
+        sage: SN = designs.symmetric_net(25,125) #long time
+
+        sage: designs.symmetric_net(49,2,existence=True)
+        True
+        sage: SN = designs.symmetric_net(49,2)
+
+        sage: designs.symmetric_net(9,6,existence=True)
+        True
+        sage: SN = designs.symmetric_net(9,6)
+
     """
     
     return transversal_design(n*lmbda,n,lmbda=lmbda, resolvable=True,check=check,existence=existence)   
@@ -251,6 +391,17 @@ def transversal_design(k, n,lmbda=1, resolvable=False, check=True, existence=Fal
         sage: designs.transversal_design(None, 120, existence=True)
         9
 
+    An example where `\lambda` is not 1::
+
+       sage: designs.transversal_design(8,4,lmbda=2,existence=True)
+       True
+       sage: TD = designs.transversal_design(8,4,lmbda=2,resolvable=True)
+       sage: TD.is_resolvable()
+       True
+       sage: TD2 = designs.transversal_design(9,4,lmbda=2)
+       sage: TD2.is_resolvable()
+       False
+
     TESTS:
 
     The case when `n=1`::
@@ -348,7 +499,7 @@ def transversal_design(k, n,lmbda=1, resolvable=False, check=True, existence=Fal
             # the call to TransversalDesign will sort the block so we can not
             # rely on the order *after* the call
             blocks = [[i*n+c for i,c in enumerate(B)] for B in OA]
-            classes = [blocks[i:i+n] for i in range(0,n*n,n)]
+            classes = [blocks[i:i+n] for i in range(0,lmbda*n*n,n)]
             TD = TransversalDesign(blocks,k,n,lmbda,check=check,copy=False)
             TD._classes = classes
             return TD
@@ -459,6 +610,51 @@ class TransversalDesign(GroupDivisibleDesign):
             Transversal Design TD_1(10,36)
         """
         return "Transversal Design TD_{}({},{})".format(self._lmbda,self._k,self._n)
+
+def find_groups(TD,k,n):
+    r"""
+    Return the groups of the given transversal design.
+
+    If ``TD`` is a transversal design, then the set of points
+    can be partitions into groups s.t. two points in the same
+    group are not covered by a single block
+
+    INPUT:
+
+    - ``TD`` -- (incidence structure) a transversal design
+    
+    - ``k,n`` -- (integers) parameters of the transversal design
+      a third parameter `\lambda` exists, but is not used in this function
+
+    NOTE::
+
+        If the incidence structure given is not a transversal design
+        then the output is garbage
+
+    """
+
+    b = TD.blocks()[0]
+    groups = [ [i] for i in b]
+    #each block intersects each point class exactly once
+    points = set(TD.ground_set())
+    points = points.difference(b) #remove already sorted points
+    while points:
+        p = points.pop()
+        for gr in groups:
+            #is p in gr?
+            p2 = gr[0]
+            #is |(p,p2)| == 0? -> yes!
+            for b in TD.blocks()[1:]:
+                if (p in b) and (p2 in b):
+                    #|(p,p2)| > 0
+                    break
+            else:
+                #we didn't break!
+                #so p and p2 are in same group
+                gr.append(p)
+                break
+    #after the loop we are done
+    return groups
 
 
 def is_transversal_design(B, k, n,lmbda=1, verbose=False):
@@ -853,15 +1049,15 @@ def orthogonal_array(k,n,t=2,lmbda=1,resolvable=False, check=True,existence=Fals
     assert n>=0, "n(={}) must be nonnegative".format(n)
 
     # A resolvable OA(k,n) is an OA(k+1,n)
-    if resolvable:
+    if resolvable and lmbda == 1:
         assert t==2, "resolvable designs are only handled when t=2"
         if existence and k is not None:
-            return orthogonal_array(k+1,n,lmbda=lmbda,existence=True)
+            return orthogonal_array(k+1,n,existence=True)
         if k is None:
-            k = orthogonal_array(None,n,lmbda=lmbda,existence=True)-1
+            k = orthogonal_array(None,n,existence=True)-1
             if existence:
                 return k
-        OA = sorted(orthogonal_array(k+1,n,lmbda=lmbda,check=check))
+        OA = sorted(orthogonal_array(k+1,n,check=check))
         return [B[1:] for B in OA]
 
     # If k is set to None we find the largest value available
@@ -889,7 +1085,7 @@ def orthogonal_array(k,n,t=2,lmbda=1,resolvable=False, check=True,existence=Fals
     if lmbda != 1:
         #only constructions from difference matrices are available at the moment
         #each diff matrix gives rise to 2 possible OA
-        possible = difference_matrix(n,k-1,lmbda,existence=True)
+        possible = False if resolvable else difference_matrix(n,k-1,lmbda,existence=True)
         possible2 = False if possible is True else difference_matrix(n,k,lmbda,existence=True)
         if possible is True:
             if existence:
@@ -1836,10 +2032,27 @@ def OA_from_quasi_difference_matrix(M,G,add_col=True,fill_hole=True):
 
         sage: _ = designs.orthogonal_arrays.build(6,20) # indirect doctest
     """
+    from sage.categories.vector_spaces import VectorSpaces
+    
     Gn = int(G.cardinality())
     k = len(M[0])+bool(add_col)
 
-    G_to_int = {x:i for i,x in enumerate(G)}
+    if G in VectorSpaces:
+        #create special dictionary that set vectors
+        #to immutable before using a dictionary
+        class SpecialDict(dict):
+            def __getitem__(self,key):
+                key.set_immutable()
+                return dict.__getitem__(self,key)
+            def __setitem__(self,key,value):
+                key.set_immutable()
+                return dict.__setitem__(self,key,value)
+        
+        G_to_int = SpecialDict()
+        for i,x in enumerate(G):
+            G_to_int[x]=i
+    else:
+        G_to_int = {x:i for i,x in enumerate(G)}
 
     # A cache for addition in G
     G_sum = [[0] * Gn for _ in range(Gn)]

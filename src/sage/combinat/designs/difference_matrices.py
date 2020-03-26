@@ -20,6 +20,9 @@ from sage.arith.all import is_prime_power, divisors
 from .designs_pyx import is_difference_matrix
 from .database import DM as DM_constructions
 from sage.combinat.matrices.hadamard_matrix import hadamard_matrix
+from sage.categories.vector_spaces import VectorSpaces
+from sage.modules.free_module import VectorSpace
+from sage.categories.finite_fields import FiniteFields
 
 @cached_function
 def find_product_decomposition(g, k, lmbda=1):
@@ -250,10 +253,9 @@ def difference_matrix(g,k,lmbda=1,existence=False,check=True):
         G = F
         M = [[x*y for y in F_k_set] for x in F_set]
 
-    elif lmbda == 2 and is_prime_power(g):
-        if k == 2*g:
-            if existence: return True
-            G,M = prime_power_and_2_difference_matrix(g)
+    elif lmbda == 2 and is_prime_power(g) and k == 2*g:
+        if existence: return True
+        G,M = prime_power_and_2_difference_matrix(g)
 
     elif g == 2 and k == 2*lmbda:
         #a (2,2m,m) diff matrix is a hadamard matrix of order 2m
@@ -269,7 +271,7 @@ def difference_matrix(g,k,lmbda=1,existence=False,check=True):
         M = list(map( lambda r: list(map(lambda x: 0 if x == 1 else 1,r )), M ) )
         G = FiniteField(2)
 
-    elif g*lmbda == k and is_prime_power(lmbda) and (lmbda%g)*(g%lmbda) == 0 :
+    elif g*lmbda == k and is_prime_power(lmbda) and is_prime_power(g) and (lmbda%g)*(g%lmbda) == 0 :
         #we have a (p^i, p^(i+j), p^j) diff-matrix
         (p,j) = is_prime_power(lmbda,get_data=True)
         (q,i) = is_prime_power(g,get_data=True)
@@ -278,6 +280,11 @@ def difference_matrix(g,k,lmbda=1,existence=False,check=True):
         if existence:
             return True
         G,M = prime_power_difference_matrix(p,i,j)
+
+    elif subgroup_construction(g,k,lmbda,existence=True):
+        if existence:
+            return True
+        G,M = subgroup_construction(g,k,lmbda)
 
     # From the database
     elif (g,lmbda) in DM_constructions and DM_constructions[g,lmbda][0]>=k:
@@ -316,14 +323,11 @@ def prime_power_difference_matrix(p,i,j):
 
     - ``i,j`` -- (integer)
 
-    EXAMPLES::
-
-
     TESTS::
     
         sage: from sage.combinat.designs.difference_matrices import prime_power_difference_matrix, is_difference_matrix
-        sage: G,M = prime_power_difference_matrix(2,4,5)
-        sage: is_difference_matrix(M,G,2^9,2^5)
+        sage: G,M = prime_power_difference_matrix(2,2,3)
+        sage: is_difference_matrix(M,G,2^5,2^3)
         True
         sage: G,M = prime_power_difference_matrix(3,1,4)
         sage: is_difference_matrix(M,G,3^5,3^4)
@@ -335,67 +339,26 @@ def prime_power_difference_matrix(p,i,j):
     """
 
     from sage.modules.free_module_element import vector
-    from sage.modules.free_module import VectorSpace
+    
 
     
     G = FiniteField(p**(i+j))
     elemsG = [x for x in G]
     K = [ [ x*y for y in elemsG] for x in elemsG]
-    #K is multiplication table for G
-
-    #now we need to map G to (Z_p)^(i+j)
-    #so we need to find a basis for G
-    iso = {}#this is the map
-    dim = i+j
+    
+    #we need to map G to (Z_p)^(i+j)
+    x = G.gen()
     Fp = FiniteField(p)
 
-    #send 0 to zero vector
-    v = [0]*dim
-    v = vector(Fp, v)
-    iso[0] = v
-
-    #we use 2 sets to find a basis for G
-    #spanBasis is the span of the basis found so far
-    #leftOver are the elements left over
-    leftOver = set(elemsG)
-    leftOver.remove(0)
-    spanBasis = set() #we don't include 0
-    index = 0 #number of vectors in the basis
-
-    while leftOver:
-        x = leftOver.pop()
-        spanX = [0]*(p-1)
-        for l in range(p-1):
-            spanX[l] = x+spanX[l-1] #when l is 0 spanX[-1] = 0
-            #create vector for spanX[l]
-            #we say x mapsto e_index
-            v = [0]*dim
-            v[index] = l+1
-            v = vector(Fp, v)
-            iso[spanX[l]] = v
-        #so spanX = [x,2x,3x,...,(p-1)x]
-        index += 1
-        #and we added those to map
-        leftOver = leftOver.difference(spanX)#remove spanX from leftOver
-
-        #now we need to combina spanX with spanBasis
-        toAdd = set()#new elements to add to spanBasis
-        for b in spanBasis:
-            for y in spanX:
-                z = b+y
-                iso[z] = iso[b]+iso[y]
-                toAdd.add(z)
-                leftOver.remove(z)
-        #now toAdd and spanX are all new elements
-        #leftOver doesn't contain them
-
-        spanBasis = spanBasis.union(toAdd)
-        spanBasis = spanBasis.union(spanX)
-        #go to next element
-
-    #now iso should map G to (Z_p)^(i+j)
-    #our epimorphism G to (Z_p)^i will be iso followed by trucation
-    H = [ [ iso[x][:i] for x in row] for row in K ]
+    basis = [x**l for l in range(i+j) ]
+    iso = {}
+    for v in VectorSpace(Fp,i+j):
+        y = 0
+        for l in range(i+j):
+            y += v[l]*(x**l)
+        iso[y] = v
+    
+    H = [ [ tuple(iso[x][:i]) for x in row] for row in K ]
 
     #So H is Over (Z_p)^i
     V = VectorSpace(Fp,i)
@@ -409,8 +372,6 @@ def prime_power_and_2_difference_matrix(q):
     INPUT:
 
     - ``q`` -- (integer) a prime power
-
-    EXAMPLES::
 
     TESTS::
 
@@ -437,14 +398,14 @@ def prime_power_and_2_difference_matrix(q):
     Fq = FiniteField(q)
     elems = [x for x in Fq]
     l = len(elems)
-    n = Fq.gen() #we only need a non-square, but this should do
+    n = Fq.primitive_element() #we only need a non-square, but this should do
 
     D = [ [0]*(2*q) for i in range(2*q) ]
     for i in range(1,5):
         for x in range(l):
             for y in range(l):
                 if i == 1:
-                    d = elems[x]*elems[y] + ( elems[x]**2 / 4)
+                    d = elems[x]*elems[y] + (elems[x]**2 / 4)
                 elif i == 2:
                     d = elems[x]*elems[y] + (n*elems[x]**2 / 4)
                 elif i == 3:
@@ -458,4 +419,111 @@ def prime_power_and_2_difference_matrix(q):
 
     return Fq,D
                 
+def subgroup_construction(g,k,lmbda,existence=False):
+    r"""
+    Return a `(g,k,\lambda)` difference matrix using a subgroup construction
+
+    If `(n,k,\lambda')` is a difference matrix over `G` and `H` is a normal subgroup
+    of order `s`, then we can build a difference matrix `(n/s,k,\lambda's)` over `G/H`
+
+    INPUT:
+
+    - ``g,k,\lambda`` -- (integers) parameters of the difference matrix to construct
+
+    - ``existence`` -- (boolean) instead of building the design, return:
+      - ``True`` if Sage can build the difference matrix using the subgroup construction
+      - ``False`` if Sage can't build the difference matrix using this construction
+         Note that Sage may be able to build such difference matrix in other ways
+
+    EXAMPLES::
+
+        sage: from sage.combinat.designs.difference_matrices import subgroup_construction, is_difference_matrix
+        sage: G,M = subgroup_construction(3,18,6)
+        sage: is_difference_matrix(M,G,18,6)
+        True
+
+    Note that designs.different_matrix can build more matrices than this method
     
+        sage: from sage.combinat.designs.difference_matrices import subgroup_construction
+        sage: subgroup_construction(25,50,2,existence=True)
+        False
+        sage: designs.difference_matrix(25,50,2,existence=True)
+        True
+
+
+    TESTS::
+
+        sage: from sage.combinat.designs.difference_matrices import subgroup_construction, is_difference_matrix
+        sage: G,M = subgroup_construction(3,18,6)
+        sage: is_difference_matrix(M,G,18,6)
+        True
+        sage: G,M = subgroup_construction(5,50,10)
+        sage: is_difference_matrix(M,G,50,10)
+        True
+        sage: G,M = subgroup_construction(8,32,4)
+        sage: is_difference_matrix(M,G,32,4)
+        True
+        sage: subgroup_construction(8,32,5,existence=True)
+        False
+
+    """
+
+    #here we assume (g,k,lmbda) = (g2/s,k,lmbda2*s)
+    #and try to construct (g2,k,lmbda2)
+    
+    possibleS = divisors(lmbda)
+    possibleS = possibleS[1:] #remove s=1
+
+    for s in possibleS:
+        g2=g*s
+        lmbda2 = lmbda//s
+        exists = difference_matrix(g2,k,lmbda2,existence=True)
+        if exists is not True:
+            continue
+
+        (G,M) = difference_matrix(g2,k,lmbda2)
+
+        if G in FiniteFields:
+            if existence: return True
+            #then G is essentially a vectorspace
+            (G,fr,to) = G.vector_space(map=True)
+
+            #map elements of M to the vector space
+            for i in range(lmbda2*g2):
+                for j in range(k):
+                    M[i][j] = to(M[i][j])
+
+        #now we need to find (if it exists) a normal subgroup of G of order s
+        if G in VectorSpaces:
+            if existence: return True
+            Fp = G.base_field()
+            #since G is a vector space over Fp = GF(p) for some p
+            #G must have size p^dim where dim is the dimension of the vector space
+            #we already know that s | |G| so s=p^j for some j
+            #we need to find out j
+            p = Fp.characteristic()
+            n = 1
+            m = p
+            while m < s:
+                m *= p
+                n += 1
+            #at this point we have  s= p^n
+            #so n = dimension of H
+
+            n = G.dimension() - n #dimension of G/H
+            GH = VectorSpace(Fp,n)
+
+            #now map all elements of M into G/H
+            for i in range(lmbda2*g2):
+                for j in range(k):
+                    M[i][j] = tuple(M[i][j][:n]) #truncate vector to first n entries
+
+            return GH,M
+        else:
+            #we don't handle this at this moment
+            continue
+
+    if existence:
+        return False
+
+    raise EmptySetError("no subgroup construction found")
