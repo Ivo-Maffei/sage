@@ -52,6 +52,7 @@ from sage.combinat.designs import design_catalog as Sage_Designs
 from sage.coding import codes_catalog as codes
 from sage.graphs.strongly_regular_db import strongly_regular_graph
 from sage.combinat.subset import Subsets
+from sage.sets.set import Set
 
 ################################################################################
 # UTILITY FUNCTIONS
@@ -617,122 +618,69 @@ def graph_3O73():
     G.name("Distance transitive graph with automorphism group 3.O_7(3)")
     return G
 
-def polar_maximal_Witt_index(d,q):
-    r""" V= F_q^{2d}. and we have a non-degenerate quadratic form Q of Witt index d
-    page 274 for graph info
 
-    we pick Q(x) = sum_{k=1}^d x_{2k-1} x_{2k}
-    Q(x) satisfy our requirements
-    """
-    def findBases(vectors, index=0, basis=set()):
-        bases = []
-        n = len(vectors)
-        while index < n:
-            v = vectors[index]
-            #check if it can go in basis
-            valid = True
-            for b in basis:
-                if Q(b+v) != 0:
-                    valid = False
-                    break
-            index += 1
-            if valid:
-                basis.add(v)
-                if len(basis) == d:
-                    bases.append(basis)
-                else:
-                    result = findBases(vectors,index,basis)
-                    if result:
-                        bases = bases + result
-                basis.remove(v)#try another v
-        return bases
-                
-                
-    
-    V = VectorSpace(GF(q), 2*d)
+def new_polar_maximal_Witt_index(d,q):
+    assert(q%2 == 1, "q should be odd?")
+    #we rely on Q(x) = sum_{k=1}^d x_{2k-1} x_{2k} on being the quadratic form we need
+    _cache_B = {}
 
-    def Q(x):
-        res = 0
-        for k in range(d):
-            res += x[2*k-1]*x[2*k]
-        return res
-    
-    import time
-    start = time.time()
-    vertices = []
-    #we need to find the maximal isotropic subspaces (they have size d)
-    if q % 2 != 0:
-        #if char field != 2. Then the bilienar from b(x,y) = q(x+y) - q(x) -q(y)
-        #can be used to find isotropic subspaces since b(x,x) = 2q(x) and so it is 0 iff q(x) is 0
-        #thus we go through the subspaces if dim 1 and collect the isotropic ones
-        #then those of dim d can be constructing with orthogonal basis whose vector are those we kept
-        start2 = time.time()
-        isotropicVectors = []
-        for W in V.subspaces(1):
-            v = W.basis_matrix()[0]
-            if Q(v) == 0:
-                isotropicVectors.append(v)
-        end2 = time.time()
-        print("found all iso vector in %.3f"%(end2-start2))
-        print("num iso vectors %d"%(len(isotropicVectors)))
+    def B(x,y):
+        if Set([x,y]) in _cache_B:
+            return _cache_B[Set([x,y])]
+        else:
+            res = 0
+            for k in range(d):
+                res += x[2*k-1]*y[2*k] + y[2*k-1]*x[2*k]
+            _cache_B[Set([x,y])] = res
+            return res
 
-        start2 = time.time()
-        #find all orthogonal bases of isotropic spaces of dim 4
-        bases = findBases(isotropicVectors)
-        end2 = time.time()
-        print("found bases in %.3f"%(end2-start2))
-
-        #we may have found 2 orthogonal basis for the same subspace
-        #the below loop removes them
-        start2 = time.time()
-        vertexSet = set()
-        for b in bases:
-            W = V.span(b)
-            vertexSet.add(W)
-        end2 = time.time()
-        print("made set in %.3f"%(end2-start2))
-        print("size of set %d"%(len(vertexSet)))
+    def is_isotropic(basis):
+        #assume basis has size d
+        for v in basis:
+            v.set_immutable()
+        for i in range(d):
+            vi = basis[i]
+            for j in range(i,d):
+                vj = basis[j]
+                if B(vi,vj) != 0:
+                    return False
+        return True
+        
+    #B(x,y) = Q(x+y) -Q(x)-Q(y) is bilinear
+    #B(x,x) = 2Q(x)
+    #W is totally isotropic wit basis v_1, ... v_k
+    #iff B(v_i,v_j) = 0.
+    #=> easy
+    #<= w in W we have w = \sum a_i v_i
+    #so Q(w) == 0 iff B(w,w) == 0
+    #B(w,w) = \sum_{ij} a_ia_j B(v_i,v_j) == 0
+    Fq = GF(q)
+    V = VectorSpace(Fq,2*d)
+    isotropic = []
+    for W in V.subspaces(d):
+        basis = W.basis()
+        if is_isotropic(basis):
+            lines = set()
+            for l in W.subspaces(1):
+                lines.add(l.basis()[0])
+            isotropic.append(Set(lines))
             
-        #now go back to list
-        vertices = list(vertexSet)
-    else :
-        #this time we need to check the subspaces
-        #there is no bilinearity and so we need to check all vectors (sort of)
-        for W in V.subspaces(d):
-            #check that W is isotropic
-            isotropic = True
-            if q == 2:
-                #we need to look at all vectors
-                for w in W:
-                    if Q(w) != 0:
-                        isotropic = False
-                        break
-            else:# q = 2^k, we can avoid looking a scalar multiples of vectors
-                #so we only look at the basis of dim 1 subspaces
-                for sp in W.subspaces(1):
-                    w = sp.basis_matrix()[0]
-                    if Q(w) != 0: #Q(w) = 0 => Q(v) = 0 for all v in sp
-                        isotropic = False
-                        break
-
-            if isotropic:
-                vertices.append(W)
-    #now we have all vector spaces
-    end = time.time()
-    print("time of subspaces %.3f"%(end-start))
-
-    start = time.time()
+    print("found all isotropic crap, there are %d" %len(isotropic))
     edges = []
-    n = len(vertices)
-    for i in range(n):
-        for j in range(i+1,n):
-            if (vertices[i].intersection(vertices[j])).dimension() == d-1:
-                edges.append( (vertices[i].basis_matrix(), vertices[j].basis_matrix()) )
-    end = time.time()
-    print("found edges in %.3f"%(end-start))
 
-    G = Graph(edges)
+    l = len(isotropic)
+    size = (q**(d-1) - 1) / (q-1)
+    for i in range(l):
+        seti = isotropic[i]
+        for j in range(i+1,l):
+            setj = isotropic[j]
+            if len(seti & setj) == size:
+                edges.append( (i,j) )
+
+    print("found edges")
+    G = Graph(edges,format="list_of_edges")
     return G
+
 
 def Foster_graph_3S6():
 
@@ -2139,12 +2087,30 @@ def distance_regular_graph_with_classical_parameters( const int d,
         elif alpha == 0 and is_power_of( beta, b ) in {0, 0.5, 1, 1.5, 2}:
             # dual polar graphs
             e = is_power_of( beta, b )
+            if e == 0:
+                #maximal Witt index
+                pass
             if e == 1:
                 #dual sympletic
                 print("sympletic dual polar %d,%d"%(2*d,b))
                 return GraphGenerators.SymplecticDualPolarGraph(2*d, b)
-            
-            pass
+            elif e == 2:
+                #non maximal Witt index
+                pass
+            elif e == 1.5:
+                #hermitean form
+                r = q_of(b,2)#b=r^2
+                if r == -1:
+                    raise ValueError("something wrong")
+                return GraphGenerators.UnitaryDualPolarGraph(2*d+1,r)
+            elif e == 0.5:
+                #other hermitean form
+                r = q_of(b,2)#b=r^2
+                if r == -1:
+                    raise ValueError("something wrong")
+                
+                return GraphGenerators.UnitaryDualPolarGraph(2*d,r)
+                
         elif ( q_of(b,2) != -1 and alpha + 1 == q_binomial(3, 1, q_of(b,2))
                and beta + 1 in { q_binomial(2*d+2, 1, q_of(b,2)),
                                  q_binomial(2*d, 1, q_of(b,2)) }
