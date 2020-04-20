@@ -216,6 +216,89 @@ def group_2F4(const int q):
 ################################################################################
 # START CONSTRUCTIONS
 
+def gen_quadrangle2(q):
+    "return the quadrangle Q(5,q)"
+    Fq = GF(q)
+    V = VectorSpace(Fq,6)
+
+    if q % 2 == 1:
+        b = 0
+        c = - Fq.primitive_element()
+    elif q == 2:
+        b = 1
+        c = 1
+    else:
+        c = 1
+        elems = set([x for x in Fq])
+        for x in Fq:
+            if x == 0: continue
+            try:
+                elems.remove( x+ 1/x)
+            except KeyError: #x+1/x not in elems which is ok
+                pass
+        b = elems.pop()#any of this will do
+    
+    def quadric(v):
+        res = v[0]*v[0]+v[2]*v[3] + v[4]*v[5]
+        res += b*v[0]*v[1] + c*v[1]*v[1]
+        return res
+
+    points = []
+    for P in V.subspaces(1):
+        v = P.basis()[0]
+        if quadric(v) == 0:
+            points.append(v)
+    print("done points")
+    
+    lines = []
+    for L in V.subspaces(2):
+        line = []
+        lineSize = 0
+        for p in points:
+            if p in L:
+                line.append(p)
+                lineSize+= 1
+            if lineSize == q+1: break
+        if line :
+            lines.append(line)
+    print("done lines")
+    from sage.combinat.designs.incidence_structures import IncidenceStructure
+    D = IncidenceStructure(points= points, blocks = lines)
+    return D
+    
+
+def gen_quadrangle(q):
+    "return the quadrangle H(3,q^2)"
+    def h(v):
+        res = 0
+        for x in v:
+            res += x**(q+1)
+        return res
+
+    V = VectorSpace(GF(q**2),4)
+    points = [ ]
+    for P in V.subspaces(1):
+        v = P.basis()[0]
+        if h(v) == 0:
+            points.append(v)
+
+    #points = [ p | h(p) == 0] and p is a point in the projective space
+
+    lines = []
+    for L in V.subspaces(2):
+        #L is a line
+        line = []
+        for p in points:
+            if p in L:
+                line.append(p)
+        if line:
+            lines.append(line)
+
+    #now we have points and lines
+    from sage.combinat.designs.incidence_structures import IncidenceStructure
+    D = IncidenceStructure(points= points, blocks = lines)
+    return D
+
 
 def graph_from_two_design( D ):
     r"""
@@ -241,7 +324,7 @@ def graph_from_two_design( D ):
         edges.append( ((x,0),(y,0)) )
         edges.append( ((x,1),(y,1)) )
 
-    #now inf is coherent with any other vertex
+    #inf is coherent with any other vertex!!
     for x in D.ground_set()[1:]:#we don't want edge inf inf
         #{x,inf,inf} is coherent
         edges.append( ((x,0),(inf,0)) )
