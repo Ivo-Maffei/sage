@@ -420,7 +420,7 @@ ext_modules = [
               sources = ['sage/graphs/strongly_regular_db.pyx']),
 
     Extension('sage.graphs.distance_regular',
-              sources = ['sage/graphs/distance_regular.pyx']),
+              sources = ['sage/graphs/distance_regular/distance_regular.pyx']),
 
     Extension('sage.graphs.graph_decompositions.rankwidth',
               sources = ['sage/graphs/graph_decompositions/rankwidth.pyx'],
