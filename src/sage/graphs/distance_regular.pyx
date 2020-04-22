@@ -216,6 +216,70 @@ def group_2F4(const int q):
 ################################################################################
 # START CONSTRUCTIONS
 
+def extended_Kasami_code(s,t):
+    #check s,t are good
+
+    V = VectorSpace(GF(2), s)
+    elemsFs = [x for x in GF(s)]
+    FsToInt = { x : i for i,x in enumerate(elemsFs)}
+    elemsFsT = [x**(t+1) for x in elemsFs]
+    FsTToInt = { x: i for i,x in enumerate(elemsFsT)}
+
+    e1 = [0]*s
+    e1[0] = 1
+    e1 = vector(GF(2),e1)
+
+    W1_basis = []
+    for i in range(s-1):
+        v = [0]*s
+        v[i] = 1
+        v[s-1] = 1
+        W1_basis.append(v)
+
+    W1 = V.span(W1_basis) #W satisfies \sum v[i] = 0
+
+    W2_basis = [e1]#not really a basis...
+    for i in range(1,s):#avoid x = 0
+        x = elemsFs[i]
+        for j in range(i+1,s):
+            y = elemsFs[j]
+            v = [0]*s
+            v[i] = 1
+            v[j] = 1
+            v[ FsToInt[ (x+y) ] ] = 1
+            W2_basis.append(v)
+    W2 = V.span(W2_basis) #U satisfies \sum v[i]elemsFs[i] = 0
+    print("dimension W2 %d"%(W2.dimension()))
+
+    W3_basis = [e1] #again not really a basis
+    for i in range(1,s): #avoid x = 0^(t+1) = 0
+        x = elemsFsT[i]
+        for j in range(i+1,s):
+            y = elemsFsT[j]
+            v = [0]*s
+            v[i] = 1
+            v[j] = 1
+            v[ FsTToInt[(x+y)] ] = 1
+            W3_basis.append(v)
+    W3 = V.span(W3_basis)
+    print("dimension W3 %d"%(W3.dimension()))
+
+    W = W2.intersection(W3)
+    print("dimension %d"%(W.dimension()))
+    codebook = W.intersection(W1)
+
+    return codebook
+
+def extended_Kasami_graph(s,t):
+    V = VectorSpace(GF(2),s)
+    K = extended_Kasami_code(s,t)
+    Q = V.quotient(K)
+    lift = Q.lift_map() #maps V/K to V
+    U_basis = [ lift(v) for v in Q.basis()]
+    G = coset_graph(list(U_basis), list(K.basis()),2)
+    G.name("Coset graph of extended Kasami code (%d,%d)"%(s,t))
+    return G
+
 def gen_quadrangle2(q):
     "return the quadrangle Q(5,q)"
     Fq = GF(q)
