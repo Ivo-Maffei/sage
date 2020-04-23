@@ -30,29 +30,27 @@ AUTHORS:
 # project C import
 from cysignals.signals cimport sig_check
 
-# python imports
-import numpy as np
-
 # sage imports
 from sage.graphs.graph_generators import GraphGenerators
 from sage.graphs.graph import Graph
 from sage.arith.misc import is_prime_power, is_prime
 from sage.combinat.q_analogues import q_binomial
 from sage.combinat.integer_vector import IntegerVectors
-from sage.modules.free_module import VectorSpace
-from sage.modules.free_module_element import vector
 from sage.matrix.matrix_space import MatrixSpace
-from sage.rings.finite_rings.finite_field_constructor import GF
-from sage.matrix.constructor import Matrix
 from sage.rings.rational cimport Rational
 from sage.rings.integer cimport Integer
-from sage.rings.number_field.number_field import CyclotomicField
-from sage.libs.gap.libgap import libgap
 from sage.combinat.designs import design_catalog as Sage_Designs
-from sage.coding import codes_catalog as codes
 from sage.graphs.strongly_regular_db import strongly_regular_graph
 from sage.combinat.subset import Subsets
 from sage.sets.set import Set
+
+#import other distance regular files (to be change later
+from distance_regular.codegraphs import *
+from distance_regular.sporadic import *
+from distance_regular.unbounded_diameter import *
+from distance_regular.unbounded_order import *
+#from distance_regular.utils import *
+
 
 ################################################################################
 # UTILITY FUNCTIONS
@@ -65,31 +63,6 @@ def _add_vectors(v, w):
         
     return tuple(result)
 
-def _hamming_weight( codeword ):
-    cdef int weight = 0
-    for i in codeword:
-        if i != 0: weight += 1
-        
-    return weight
-
-def _hamming_distance( v, w ):
-    assert( len(v) == len(w),
-         "Can't compute Hamming distance of 2 vectors of different size!")
-         
-    cdef int counter = 0
-    for i in range(len(v)):
-        if ( v[i] != w[i] ):
-            counter = counter + 1
-    
-    return counter
-
-def _codewords_have_different_support( vec1, vec2 ):
-    # the support of a codeword is the set of coordinates where the codeword
-    # has non-zero entries
-    for (i,j) in zip(vec1,vec2):
-        if i*j != 0:
-            return False
-    return True
     
 def group_2F4(const int q):
     #we must have q = 2^{2m +1}

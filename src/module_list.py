@@ -421,6 +421,21 @@ ext_modules = [
 
     Extension('sage.graphs.distance_regular',
               sources = ['sage/graphs/distance_regular/distance_regular.pyx']),
+    
+    Extension('sage.graphs.distance_regular.codegraphs',
+              sources = ['sage/graphs/distance_regular/distance_regular_codegraphs.pyx']),
+
+    Extension('sage.graphs.distance_regular.sporadic',
+              sources = ['sage/graphs/distance_regular/distance_regular_sporadic.pyx']),
+
+    Extension('sage.graphs.distance_regular.unbounded_diameter',
+              sources = ['sage/graphs/distance_regular/distance_regular_unbounded_diameter.pyx']),
+
+    Extension('sage.graphs.distance_regular.unbounded_order',
+              sources = ['sage/graphs/distance_regular/distance_regular_unbounded_order.pyx']),
+
+    Extension('sage.graphs.distance_regular.utils',
+              sources = ['sage/graphs/distance_regular/distance_regular_utils.pyx']),
 
     Extension('sage.graphs.graph_decompositions.rankwidth',
               sources = ['sage/graphs/graph_decompositions/rankwidth.pyx'],

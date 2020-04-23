@@ -1,7 +1,16 @@
+from sage.rings.finite_rings.finite_field_constructor import GF
+from sage.modules.free_module import VectorSpace
+from sage.matrix.constructor import Matrix
+from sage.modules.free_module_element import vector
+from sage.graphs.graph import Graph
+from sage.graphs.graph_generators import GraphGenerators
+from sage.coding import codes_catalog as codes
+
+
 r"""
 Include all graphs built as cosets graphs from linear codes
 """
-def coset_graph( C_basis, U_basis = None, const int q ):
+def coset_graph( const int q, C_basis, U_basis = None ):
     r"""
     computes the coset graph \Gamma(C) where C = span(C_basis)
     we need U = span(U_basis) to be s.t. U+C = V
@@ -132,13 +141,13 @@ def Kasami_code(s,t):
 
 def Kasami_graph(s,t):
     K = Kasami_code(s,t)
-    G = coset_graph(K.basis(),None,2)
+    G = coset_graph(2,K.basis())
     G.name("Coset graph of Kasami code (%d,%d)"%(s,t))
     return G
 
 def extended_Kasami_graph(s,t):
     K = extended_Kasami_code(s,t)
-    G = coset_graph(K.basis(),None,2)
+    G = coset_graph(2,K.basis())
     G.name("Coset graph of extended Kasami code (%d,%d)"%(s,t))
     return G
 
@@ -197,7 +206,7 @@ def extended_binary_Golay_code_graph():
     golayCode = codes.GolayCode(GF(2), extended=True)
     C_basis = list( golayCode.generator_matrix() )
 
-    G = coset_graph(C_basis,U_basis,2)
+    G = coset_graph(2,C_basis,U_basis)
     G.name("Extended Binary Golay code graph")
     return G
     
@@ -216,7 +225,7 @@ def binary_Golay_code_graph():
 
     golayCode = codes.GolayCode(GF(2), extended=False)
     C_basis = list( golayCode.generator_matrix() )
-    G = coset_graph(C_basis, U_basis, 2)
+    G = coset_graph(2,C_basis, U_basis)
     G.name("Binary Golay code graph")
     return G
 
@@ -234,7 +243,7 @@ def truncated_binary_Golay_code_graph():
     C_basis = list( golayCode.generator_matrix() )
     C_basis = list( map( lambda v : v[1:], C_basis) ) #truncate the code
     
-    G = coset_graph(C_basis, U_basis, 2)
+    G = coset_graph(2,C_basis, U_basis)
     G.name("Truncated binary Golay code graph")
     return G
 
@@ -252,7 +261,7 @@ def doubly_truncated_binary_Golay_code_graph():
     C_basis = list( golayCode.generator_matrix() )
     C_basis = list( map( lambda v : v[2:], C_basis) ) #truncate the code
     
-    G = coset_graph(C_basis, U_basis, 2)
+    G = coset_graph(2,C_basis, U_basis)
     G.name("Doubly truncated binary Golay code graph")
     return G
 
@@ -295,7 +304,7 @@ def shortened_binary_Golay_code_graph():
 
     U_basis = [ e(i) for i in range(1,12) ]
 
-    G = coset_graph(C_basis, U_basis, 2)
+    G = coset_graph(2,C_basis, U_basis)
     G.name("Shortened binary Golay code")
     return G
 
@@ -314,7 +323,7 @@ def shortened_ternary_Golay_code_graph():
 
     U_basis = [ e(i) for i in range(1,6) ]
 
-    G = coset_graph(C_basis, U_basis, 3)
+    G = coset_graph(3,C_basis, U_basis)
     G.name("Shortened ternary Golay code")
     return G
 
@@ -333,7 +342,7 @@ def shortened_extended_ternary_Golay_code_graph():
 
     U_basis = [ e(i) for i in range(1,7) ]
 
-    G = coset_graph(C_basis, U_basis, 3)
+    G = coset_graph(3,C_basis, U_basis)
     G.name("Shortened extended ternary Golay code")
     return G
 
@@ -358,7 +367,7 @@ def shortened_00_11_binary_Golay_code_graph():
 
     U_basis = [ e(i) for i in range(1,11) ]
 
-    G = coset_graph(C_basis, U_basis, 2)
+    G = coset_graph(2,C_basis, U_basis)
     G.name("Shortened 00 11 binary Golay code")
     return G
 
@@ -383,7 +392,7 @@ def shortened_000_111_extended_binary_Golay_code_graph():
 
     U_basis = [ e(i) for i in range(1,13) if i != 10 ]#this time U_basis is a bit different
 
-    G = coset_graph(C_basis, U_basis, 2)
+    G = coset_graph(2,C_basis, U_basis)
     G.name("Shortened 000 111 extended binary Golay code")
     return G
 
@@ -396,7 +405,7 @@ def LintSchrijver_graph():
     one = vector(GF(3), [1]*6)
     C_basis = [one]
     U_basis = [e(i) for i in range(5)]
-    G = coset_graph(C_basis,U_basis,3)
+    G = coset_graph(3,C_basis,U_basis)
 
     vertices = set()
     for v in G.vertices():

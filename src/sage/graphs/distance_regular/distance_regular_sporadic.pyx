@@ -1,3 +1,29 @@
+from sage.libs.gap.libgap import libgap
+from sage.rings.number_field.number_field import CyclotomicField
+from sage.graphs.graph import Graph
+from sage.modules.free_module import VectorSpace
+from sage.rings.finite_rings.finite_field_constructor import GF
+from sage.rings.integer cimport Integer
+from sage.modules.free_module_element import vector
+import numpy as np
+from sage.combinat.integer_vector import IntegerVectors
+
+def _hamming_weight( codeword ):
+    cdef int weight = 0
+    for i in codeword:
+        if i != 0: weight += 1
+        
+    return weight
+
+def _codewords_have_different_support( vec1, vec2 ):
+   # the support of a codeword is the set of coordinates where the codeword
+   # has non-zero entries
+   for (i,j) in zip(vec1,vec2):
+      if i*j != 0:
+         return False
+   return True
+
+
 r"""
 include all sporadic (not part of a family) distance regular graphs
 """

@@ -2,6 +2,9 @@ r"""
 Here we have utility functions that do not construct graphs
 """
 
+from sage.rings.rational cimport Rational
+from sage.combinat.q_analogues import q_binomial
+
 def number_of_vertices_from_intersection_array( array ):
     cdef int d = len(array) / 2
 

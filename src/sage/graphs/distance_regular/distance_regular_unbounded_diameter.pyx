@@ -1,3 +1,27 @@
+r"""
+all dist reg graph with unbounded diameter
+"""
+
+from sage.combinat.integer_vector import IntegerVectors
+from sage.graphs.graph import Graph
+from sage.matrix.matrix_space import MatrixSpace
+from sage.rings.finite_rings.finite_field_constructor import GF
+from cysignals.signals cimport sig_check
+from sage.arith.misc import is_prime_power
+from sage.graphs.graph_generators import GraphGenerators
+from sage.combinat.designs import design_catalog as Sage_Designs
+
+def _hamming_distance( v, w ):
+    assert( len(v) == len(w),
+         "Can't compute Hamming distance of 2 vectors of different size!")
+         
+    cdef int counter = 0
+    for i in range(len(v)):
+        if ( v[i] != w[i] ):
+            counter = counter + 1
+    
+    return counter
+
 def doubled_odd_graph( int n ):
     r"""
     let X = {1,2,..., 2n +1}
