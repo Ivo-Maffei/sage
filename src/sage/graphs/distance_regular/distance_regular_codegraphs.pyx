@@ -1,14 +1,21 @@
 r"""
 Include all graphs built as cosets graphs from linear codes
 """
-def coset_graph( list U_basis, list C_basis, const int q ):
+def coset_graph( C_basis, U_basis = None, const int q ):
     r"""
     computes the coset graph \Gamma(C) where C = span(C_basis)
     we need U = span(U_basis) to be s.t. U+C = V
     all vector spaces are over GF(q)
     """
-    n = len(U_basis[0])# dim V
+    n = len(C_basis[0])# dim V
     F = GF(q) #base field
+
+    if U_basis == None:
+        V = VectorSpace(F,n)
+        C = V.span(C_basis)
+        Q = V.quotient(C)
+        lift = Q.lift_map()
+        U_basis = [ lift(v) for v in Q.basis() ]
 
     lambdas = [ x for x in F if x != 0 ]#non-zero elements of F
     
@@ -81,7 +88,7 @@ def extended_Kasami_code(s,t):
 
     W1 = V.span(W1_basis) #W satisfies \sum v[i] = 0
 
-    W2_basis = [e1]#not really a basis...
+    W2_basis = set(e1)#not really a basis...
     for i in range(1,s):#avoid x = 0
         x = elemsFs[i]
         for j in range(i+1,s):
@@ -90,11 +97,11 @@ def extended_Kasami_code(s,t):
             v[i] = 1
             v[j] = 1
             v[ FsToInt[ (x+y) ] ] = 1
-            W2_basis.append(v)
+            W2_basis.add(v)
     W2 = V.span(W2_basis) #U satisfies \sum v[i]elemsFs[i] = 0
-    print("dimension W2 %d"%(W2.dimension()))
+    #print("dimension W2 %d"%(W2.dimension()))
 
-    W3_basis = [e1] #again not really a basis
+    W3_basis = set(e1) #again not really a basis
     for i in range(1,s): #avoid x = 0^(t+1) = 0
         x = elemsFsT[i]
         for j in range(i+1,s):
@@ -103,23 +110,35 @@ def extended_Kasami_code(s,t):
             v[i] = 1
             v[j] = 1
             v[ FsTToInt[(x+y)] ] = 1
-            W3_basis.append(v)
+            W3_basis.add(v)
     W3 = V.span(W3_basis)
-    print("dimension W3 %d"%(W3.dimension()))
+    #print("dimension W3 %d"%(W3.dimension()))
 
     W = W2.intersection(W3)
-    print("dimension %d"%(W.dimension()))
+    #print("dimension %d"%(W.dimension()))
     codebook = W.intersection(W1)
-
+    
     return codebook
 
+def Kasami_code(s,t):
+    r"""
+    take extended Kasami and shorten it
+    """
+
+    C = extended_Kasami_code(s,t)
+    shortC = [ v for v in C if v[0] == 0 ]
+    codebook = [v[1:] for v in shortC]
+    return codebook
+
+def Kasami_graph(s,t):
+    K = Kasami_code(s,t)
+    G = coset_graph(K.basis(),None,2)
+    G.name("Coset graph of Kasami code (%d,%d)"%(s,t))
+    return G
+
 def extended_Kasami_graph(s,t):
-    V = VectorSpace(GF(2),s)
     K = extended_Kasami_code(s,t)
-    Q = V.quotient(K)
-    lift = Q.lift_map() #maps V/K to V
-    U_basis = [ lift(v) for v in Q.basis()]
-    G = coset_graph(list(U_basis), list(K.basis()),2)
+    G = coset_graph(K.basis(),None,2)
     G.name("Coset graph of extended Kasami code (%d,%d)"%(s,t))
     return G
 
@@ -178,7 +197,7 @@ def extended_binary_Golay_code_graph():
     golayCode = codes.GolayCode(GF(2), extended=True)
     C_basis = list( golayCode.generator_matrix() )
 
-    G = coset_graph(U_basis,C_basis,2)
+    G = coset_graph(C_basis,U_basis,2)
     G.name("Extended Binary Golay code graph")
     return G
     
@@ -197,7 +216,7 @@ def binary_Golay_code_graph():
 
     golayCode = codes.GolayCode(GF(2), extended=False)
     C_basis = list( golayCode.generator_matrix() )
-    G = coset_graph(U_basis, C_basis, 2)
+    G = coset_graph(C_basis, U_basis, 2)
     G.name("Binary Golay code graph")
     return G
 
@@ -215,7 +234,7 @@ def truncated_binary_Golay_code_graph():
     C_basis = list( golayCode.generator_matrix() )
     C_basis = list( map( lambda v : v[1:], C_basis) ) #truncate the code
     
-    G = coset_graph(U_basis, C_basis, 2)
+    G = coset_graph(C_basis, U_basis, 2)
     G.name("Truncated binary Golay code graph")
     return G
 
@@ -233,7 +252,7 @@ def doubly_truncated_binary_Golay_code_graph():
     C_basis = list( golayCode.generator_matrix() )
     C_basis = list( map( lambda v : v[2:], C_basis) ) #truncate the code
     
-    G = coset_graph(U_basis, C_basis, 2)
+    G = coset_graph(C_basis, U_basis, 2)
     G.name("Doubly truncated binary Golay code graph")
     return G
 
@@ -276,7 +295,7 @@ def shortened_binary_Golay_code_graph():
 
     U_basis = [ e(i) for i in range(1,12) ]
 
-    G = coset_graph(U_basis, C_basis, 2)
+    G = coset_graph(C_basis, U_basis, 2)
     G.name("Shortened binary Golay code")
     return G
 
@@ -295,7 +314,7 @@ def shortened_ternary_Golay_code_graph():
 
     U_basis = [ e(i) for i in range(1,6) ]
 
-    G = coset_graph(U_basis, C_basis, 3)
+    G = coset_graph(C_basis, U_basis, 3)
     G.name("Shortened ternary Golay code")
     return G
 
@@ -314,7 +333,7 @@ def shortened_extended_ternary_Golay_code_graph():
 
     U_basis = [ e(i) for i in range(1,7) ]
 
-    G = coset_graph(U_basis, C_basis, 3)
+    G = coset_graph(C_basis, U_basis, 3)
     G.name("Shortened extended ternary Golay code")
     return G
 
@@ -339,7 +358,7 @@ def shortened_00_11_binary_Golay_code_graph():
 
     U_basis = [ e(i) for i in range(1,11) ]
 
-    G = coset_graph(U_basis, C_basis, 2)
+    G = coset_graph(C_basis, U_basis, 2)
     G.name("Shortened 00 11 binary Golay code")
     return G
 
@@ -364,7 +383,7 @@ def shortened_000_111_extended_binary_Golay_code_graph():
 
     U_basis = [ e(i) for i in range(1,13) if i != 10 ]#this time U_basis is a bit different
 
-    G = coset_graph(U_basis, C_basis, 2)
+    G = coset_graph(C_basis, U_basis, 2)
     G.name("Shortened 000 111 extended binary Golay code")
     return G
 
@@ -377,7 +396,7 @@ def LintSchrijver_graph():
     one = vector(GF(3), [1]*6)
     C_basis = [one]
     U_basis = [e(i) for i in range(5)]
-    G = coset_graph(U_basis,C_basis,3)
+    G = coset_graph(C_basis,U_basis,3)
 
     vertices = set()
     for v in G.vertices():

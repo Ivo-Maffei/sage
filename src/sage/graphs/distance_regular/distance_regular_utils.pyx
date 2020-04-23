@@ -299,3 +299,18 @@ def is_near_polygon(list arr):
 
     #if we get here we passed the test
     return l
+
+def intersection_array_2d_gon(d, s, t):
+    b = [0]*d
+    c = [0]*d
+
+    b[0] = s*(t+1)
+    c[d-1] = t+1
+
+    for i in range(d-1):
+        c[i] = 1
+
+    for i in range(1,d):
+        b[i] = b[0] - s
+
+    return b + c
