@@ -44,12 +44,12 @@ from sage.graphs.strongly_regular_db import strongly_regular_graph
 from sage.combinat.subset import Subsets
 from sage.sets.set import Set
 
-#import other distance regular files (to be change later
-from distance_regular.codegraphs import *
-from distance_regular.sporadic import *
-from distance_regular.unbounded_diameter import *
-from distance_regular.unbounded_order import *
-from distance_regular.utils import *
+#import other distance regular files (to be changed later)
+from sage.graphs.distance_regular_codegraphs import *
+from sage.graphs.distance_regular_sporadic import *
+from sage.graphs.distance_regular_unbounded_diameter import *
+from sage.graphs.distance_regular_unbounded_order import *
+from sage.graphs.distance_regular_utils import *
 
 
 ################################################################################

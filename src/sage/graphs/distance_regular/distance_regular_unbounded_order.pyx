@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 r"""
 all dist reg graphs with unbounded order
 """
@@ -11,7 +12,7 @@ from sage.arith.misc import is_prime_power
 from sage.modules.free_module_element import vector
 from sage.libs.gap.libgap import libgap
 
-from distance_regular.utils import *
+from sage.graphs.distance_regular_utils import *
 
 def gen_quadrangle2(q):
     "return the quadrangle Q(5,q)"
@@ -96,6 +97,41 @@ def gen_quadrangle(q):
     D = IncidenceStructure(points= points, blocks = lines)
     return D
 
+
+def unitary_nonisotropic_graph(q):
+    r"""
+    see page 383 on BCN
+    """
+
+    #hermitean form
+    def h(u,v):
+        w = [ x**q for x in v]#conjugate of v
+        return u[0]*w[0]+u[1]*w[1]+u[2]*w[2]
+
+    r = q*q
+    V = VectorSpace(GF(r),3)
+
+    vertices = [] #projective points that are nonisotropic
+    for P in V.subspaces(1):
+        v = P.basis()[0]
+        if h(v,v) != 0:
+            vertices.append(v)
+
+    for v in vertices:
+        v.set_immutable()
+
+    n = len(vertices)
+    edges = []
+    for i in range(n):
+        v = vertices[i]
+        for j in range(i+1,n):
+            w = vertices[j]
+            if h(v,w) == 0:
+                edges.append((v,w))
+
+    G = Graph(edges,format="list_of_edges")
+    G.name("Unitary nonisotropic graph on (F_%d)^3"%r)
+    return G
 
 def graph_from_two_design( D ):
     r"""

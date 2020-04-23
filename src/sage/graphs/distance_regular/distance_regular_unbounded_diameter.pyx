@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 r"""
 all dist reg graph with unbounded diameter
 """

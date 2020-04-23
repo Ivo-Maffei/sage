@@ -1,3 +1,5 @@
+# cython: profile=False
+# -*- coding: utf-8 -*-
 from sage.rings.finite_rings.finite_field_constructor import GF
 from sage.modules.free_module import VectorSpace
 from sage.matrix.constructor import Matrix
@@ -10,13 +12,15 @@ from sage.coding import codes_catalog as codes
 r"""
 Include all graphs built as cosets graphs from linear codes
 """
-def coset_graph( const int q, C_basis, U_basis = None ):
+def coset_graph( const int q, C_basis, U_basis = None, n = None ):
     r"""
     computes the coset graph \Gamma(C) where C = span(C_basis)
     we need U = span(U_basis) to be s.t. U+C = V
-    all vector spaces are over GF(q)
+    all vector spaces are over GF(q) and V has dimension n
     """
-    n = len(C_basis[0])# dim V
+
+    if n == None:
+        n = len(C_basis[0])# dim V
     F = GF(q) #base field
 
     if U_basis == None:
@@ -77,8 +81,9 @@ def coset_graph( const int q, C_basis, U_basis = None ):
 
 def extended_Kasami_code(s,t):
     #check s,t are good
-
-    V = VectorSpace(GF(2), s)
+    
+    F2 = GF(2)
+    V = VectorSpace(F2, s)
     elemsFs = [x for x in GF(s)]
     FsToInt = { x : i for i,x in enumerate(elemsFs)}
     elemsFsT = [x**(t+1) for x in elemsFs]
@@ -86,7 +91,8 @@ def extended_Kasami_code(s,t):
 
     e1 = [0]*s
     e1[0] = 1
-    e1 = vector(GF(2),e1)
+    e1 = vector(F2,e1,immutable=True)
+    assert(e1 in V, "e1 not in V!")
 
     W1_basis = []
     for i in range(s-1):
@@ -94,10 +100,9 @@ def extended_Kasami_code(s,t):
         v[i] = 1
         v[s-1] = 1
         W1_basis.append(v)
-
     W1 = V.span(W1_basis) #W satisfies \sum v[i] = 0
 
-    W2_basis = set(e1)#not really a basis...
+    W2_basis = set([e1])#not really a basis...
     for i in range(1,s):#avoid x = 0
         x = elemsFs[i]
         for j in range(i+1,s):
@@ -105,12 +110,13 @@ def extended_Kasami_code(s,t):
             v = [0]*s
             v[i] = 1
             v[j] = 1
-            v[ FsToInt[ (x+y) ] ] = 1
+            v[ FsToInt[(x+y)] ] = 1
+            v = vector(F2,v,immutable=True)
             W2_basis.add(v)
     W2 = V.span(W2_basis) #U satisfies \sum v[i]elemsFs[i] = 0
-    #print("dimension W2 %d"%(W2.dimension()))
 
-    W3_basis = set(e1) #again not really a basis
+
+    W3_basis = set([e1]) #again not really a basis
     for i in range(1,s): #avoid x = 0^(t+1) = 0
         x = elemsFsT[i]
         for j in range(i+1,s):
@@ -119,35 +125,35 @@ def extended_Kasami_code(s,t):
             v[i] = 1
             v[j] = 1
             v[ FsTToInt[(x+y)] ] = 1
+            v=vector(F2,v,immutable=True)
             W3_basis.add(v)
     W3 = V.span(W3_basis)
-    #print("dimension W3 %d"%(W3.dimension()))
 
     W = W2.intersection(W3)
-    #print("dimension %d"%(W.dimension()))
     codebook = W.intersection(W1)
     
     return codebook
 
 def Kasami_code(s,t):
     r"""
-    take extended Kasami and shorten it
+    take extended Kasami and truncate it
     """
 
     C = extended_Kasami_code(s,t)
-    shortC = [ v for v in C if v[0] == 0 ]
-    codebook = [v[1:] for v in shortC]
-    return codebook
+    codebook = [v[1:] for v in C.basis()]
+    V = VectorSpace(GF(2),s-1)
+    
+    return V.span(codebook)
 
 def Kasami_graph(s,t):
     K = Kasami_code(s,t)
-    G = coset_graph(2,K.basis())
+    G = coset_graph(2,K.basis(),n=s-1)
     G.name("Coset graph of Kasami code (%d,%d)"%(s,t))
     return G
 
 def extended_Kasami_graph(s,t):
     K = extended_Kasami_code(s,t)
-    G = coset_graph(2,K.basis())
+    G = coset_graph(2,K.basis(), n=s)
     G.name("Coset graph of extended Kasami code (%d,%d)"%(s,t))
     return G
 

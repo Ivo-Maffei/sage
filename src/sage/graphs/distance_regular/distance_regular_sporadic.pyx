@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from sage.libs.gap.libgap import libgap
 from sage.rings.number_field.number_field import CyclotomicField
 from sage.graphs.graph import Graph

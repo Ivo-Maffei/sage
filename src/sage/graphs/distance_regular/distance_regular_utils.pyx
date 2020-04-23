@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 r"""
 Here we have utility functions that do not construct graphs
 """
