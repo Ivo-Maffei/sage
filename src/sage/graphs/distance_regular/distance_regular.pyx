@@ -375,6 +375,194 @@ def double_Grassman(const int q, const int n, const int e):
 ################################################################################
 # UNBOUNDED ORDER
 
+def DennistonArc(n):
+    r"""
+    build dist reg graph from p387
+    """
+    (p,k) = is_prime_power(n,get_data=True)
+    if p != 2:
+        raise ValueError("input must be a power of 2")
+    
+    q = n*n
+    Fq = GF(q)
+    Fn = GF(n)
+    elemsFq = [ x for x in Fq]
+    assert(elemsFq[0] == 0, "issue with 0 in Fq")
+
+    #find irreducible quadratic
+    candidates = set(Fq)
+    for x in elemsFq[1:]:#we rely on the first element to be 0
+        a = x + (1/x)
+        candidates = candidates.difference({a})
+
+    irrCoef = candidates.pop()
+    print("irr quadric: x^2+{}xy+y^2".format(irrCoef))
+    def Q(x,y):
+        return x*x+irrCoef*x*y+y*y
+
+    PG = Sage_Designs.ProjectiveGeometryDesign(2,1,q) #projective plane PG(2,q)
+    #the points are represented as vectors with homogenous coordinates (first non-zero entry is 1)
+
+    arc = set() #complete arc
+    #for x in Fq:
+    #    for y in Fq:
+    #        if Q(x,y) in Fn:
+    #            arc.add( (1,x,y) )
+                
+    for v in PG.ground_set():
+        if v[0] == 1 and Q(v[1],v[2]) in Fn:
+            arc.add(v)
+
+    print("complete arc {}".format(arc))
+
+    #we can check that arc is indeed a complete n-arc
+    #each line must meet the arc in either 0 or n points
+    for b in PG.blocks():
+        count = 0
+        for p in b:
+            if p in arc:
+                count += 1
+        if count != 0 and count != n:
+            print("arc is not a complete n-arc")
+            return
+    print("built a complete arc!")
+
+    #check is a denniston's complete arch
+    #as paper by bari uni
+
+    #first we need all pairs (a,b) s.t. a^2+irrCoef*a*b+b^2 = 1
+    U = []
+    for a in Fq:
+        for b in Fq:
+            if Q(a,b) == 1:
+                U.append( (a,b) )
+    #arc is denniston's iff is invariant under the collineations
+    #u(a,b): x'=(a+irrCoef*b)x+by, y'=bx+ay
+    for (a,b) in U:
+        newArc = set()
+        for v in arc:
+            x = v[1]
+            y = v[2]
+            newV = (1,(a+irrCoef*b)*x+b*y, b*x+a*y)
+            newArc.add(newV)
+        if newArc != arc:
+            print("not Denniston's arc")
+            break
+    print("Denniston's arc!!!")
+
+    #complement 1: remove all lines touching the arc
+    #lines = []#lines of the complement
+    #for b in PG.blocks():
+    #    for p in b:
+    #        if p[0] == 1 and Q(p[1],p[2]) in Fn:
+    #            break
+    #    else:#we didn't break => b doesn't intersect arc
+    #        lines.append(b)
+
+    #complement 2: remove all points in (arc or lines touching arc)
+    #toRemove = set()
+    #toRemove = toRemove.union(arc)
+    #for l in PG.blocks():
+    #    for p in l:
+    #        if p in arc:
+    #            toRemove = toRemove.union(l)
+    #            break
+
+    #lines = []
+    #for b in PG.blocks():
+    #    newB = []
+    #    for p in b:
+    #        if p not in toRemove:
+    #            newB.append(p)
+    #    if newB:
+    #        lines.append(newB)
+
+    #complement 3:
+    #pick all lines intersecting arc in n points (so any line intersecting the arc)
+    #remove all points in arc
+    lines = []
+    for b in PG.blocks():
+        for p in b:
+            if p in arc:
+                newLine = Set(b).difference(arc)
+                lines.append(newLine)
+                break
+
+    print("comlpement structure {}".format(lines))
+
+    #now we can check if the complement is a partila geometry
+    #pg(n^2-n+1, n^2-n+1, (n-1)^2)
+    #to check:
+    #1 each line has size n^2-n+1 (>= 2)
+    #2 each point intersects n^2-n+1 lines
+    #3 each point outside a line l is in (n-1)^2 lines meeting l
+    #4 two distinct points are joined by at most 1 line
+
+    #check 1
+    for l in lines:
+        if len(l) != n*n-n+1:
+            print( "line size is wrong")
+            break
+
+    #create points
+    points = set()
+    for l in lines:
+        for p in l:
+            points.add(p)
+
+    #check 2
+    for p in points:
+        count = 0
+        for l in lines:
+            if p in l:
+                count += 1
+        if count != n*n-n+1:
+            print("point size is wrong")
+            break
+
+    #check 3
+    for p in points:
+        for l in lines:
+            if p in l: continue
+            linesP = [] #lines incident with p
+            for l2 in lines:
+                if p in l2:
+                    linesP.append(l2)
+            #now count how many lines in linesP meet l
+            count = 0
+            for l2 in linesP:
+                setL2 = set(l2)
+                if len(setL2.intersection(l)) != 0:
+                    count += 1
+            if count != (n-1)*(n-1):
+                print("condition 3 failed")
+                break
+
+    #check 4
+    for p1 in points:
+        for p2 in points:
+            if p1 == p2: continue
+            count = 0
+            for l in lines:
+                if p1 in l and p2 in l:
+                    count += 1
+            if count > 1:
+                print("2 points joined by more than 1 line")
+                break
+
+    print("we have a good partial geometry")
+
+    #now we have a list of all lines of the complement
+    edges = []
+    for b in lines:
+        bs = Set(b)
+        for p in b:
+            edges.append( (p,bs) )
+
+    G = Graph(edges,format="list_of_edges")
+    G.name("Incidence graph of the complement of a complete %d-arc in PG(2,%d)"%(n,q))
+    return G
+
 def gen_quadrangle2(q):
     "return the quadrangle Q(5,q)"
     Fq = GF(q)
@@ -463,7 +651,11 @@ def unitary_nonisotropic_graph(q):
     r"""
     see page 383 on BCN
     """
-
+    if q < 3:
+        raise ValueError("q must be greater than 2")
+    if not is_prime_power(q):
+        raise ValueError("q must be a prime power")
+    
     #hermitean form
     def h(u,v):
         w = [ x**q for x in v]#conjugate of v
