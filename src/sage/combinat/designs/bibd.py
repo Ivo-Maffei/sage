@@ -63,7 +63,7 @@ from sage.arith.all import binomial, is_prime_power
 from .group_divisible_designs import GroupDivisibleDesign
 from .designs_pyx import is_pairwise_balanced_design
 
-def balanced_incomplete_block_design(v, k, existence=False, use_LJCR=False):
+def balanced_incomplete_block_design(v, k, lmbd = 1, existence=False, use_LJCR=False):
     r"""
     Return a BIBD of parameters `v,k`.
 
@@ -172,9 +172,10 @@ def balanced_incomplete_block_design(v, k, existence=False, use_LJCR=False):
         sage: designs.balanced_incomplete_block_design(21,6,existence=True)
         False
     """
-    lmbd = 1
+    #need work to make sure it works
+    assert(lmbd == 1, "not implemented yet")
 
-    # Trivial BIBD
+    # yet BIBD
     if v == 1:
         if existence:
             return True
@@ -223,10 +224,10 @@ def balanced_incomplete_block_design(v, k, existence=False, use_LJCR=False):
     from .difference_family import difference_family
     from .database import BIBD_constructions
 
-    if (v,k,1) in BIBD_constructions:
+    if (v,k,lmbd) in BIBD_constructions:
         if existence:
             return True
-        return BlockDesign(v,BIBD_constructions[(v,k,1)](), copy=False)
+        return BlockDesign(v,BIBD_constructions[(v,k,lmbd)](), copy=False)
     if BIBD_from_arc_in_desarguesian_projective_plane(v,k,existence=True):
         if existence:
             return True

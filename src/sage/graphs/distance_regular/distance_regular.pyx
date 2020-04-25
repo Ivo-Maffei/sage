@@ -55,6 +55,164 @@ from sage.graphs.distance_regular_sporadic import *
 ################################################################################
 # UNBOUNDED DIAMETER
 
+def Ustimenko_graph(m,q):
+    r"""
+    dist 1-or-2 of the dual polar graph C_{m-1}(q)
+    """
+
+    G = GraphGenerators.SymplecticDualPolarGraph(2*m-2,q)
+
+    edgesToAdd = []
+    #we can't add edges as we go since this will change the distances in the graph
+    for v in G.vertices():
+        for w in G.neighbors(v):
+            for u in G.neighbors(w):
+                if u != v and not G.has_edge(u,v):
+                    #then u,v are at distance 2
+                    edgesToAdd.append( (u,v) )
+
+    G.add_edges(edgesToAdd)
+    return G
+
+def test_dual_polar_orthogonal():
+
+    numVer = lambda arr: number_of_vertices_from_intersection_array(arr)
+
+    for d in range(3,10):
+        for q in [2,3,4,5,7,8,9,11,13,16]:
+            arr0 = intersection_array_from_classical_parameters(d,q,0,q)
+            arr1 = intersection_array_from_classical_parameters(d,q,0,1)
+            arrm1 = intersection_array_from_classical_parameters(d,q,0,q*q)
+
+            if numVer(arr0) < 10000:
+                print("(%d,%d,%d) = %d vertices"%(0,d,q,numVer(arr0)))
+                G = dual_polar_orthogonal(0,d,q)
+                print("(%d,%d,%d) built"%(0,d,q))
+                if intersection_array_from_graph(G) != arr0:
+                    print("failed parameters (%d,%d,%d)"%(0,d,q))
+
+            if numVer(arr1) < 10000:
+                print("(%d,%d,%d) = %d vertices"%(1,d,q,numVer(arr1)))
+                G = dual_polar_orthogonal(1,d,q)
+                print("(%d,%d,%d) built"%(1,d,q))
+                if intersection_array_from_graph(G) != arr1:
+                    print("failed parameters (%d,%d,%d)"%(1,d,q))
+
+            if numVer(arrm1) < 10000:
+                print("(%d,%d,%d) = %d vertices"%(-1,d,q,numVer(arrm1)))
+                G = dual_polar_orthogonal(-1,d,q)
+                print("(%d,%d,%d) built"%(-1,d,q))
+                if intersection_array_from_graph(G) != arrm1:
+                    print("failed parameters (%d,%d,%d)"%(-1,d,q))
+
+    print("tested completed")
+            
+
+def dual_polar_orthogonal(const int e, const int  d, const int q):
+    r"""
+    return dual polar graph of type e with diameter d over GF(q)
+    """
+
+    def hashable(v):
+        v.set_immutable()
+        return v
+
+    if e not in {0,1,-1}:
+        raise ValueError("e must by 0,+1 or -1")
+
+    m = 2*d + 1 - e
+
+    group = libgap.GeneralOrthogonalGroup(e,m,q)
+    M = Matrix(libgap.InvariantQuadraticForm(group)["matrix"])
+
+    #Q(x) = xMx is a quadratic form and group is the group of invertible linear transformation leaving Q invariant
+
+    #we need to find a totally isotropic subspace of dimension n
+    #attempt 1 (consider kernel)
+    K = M.kernel()
+    isotropicBasis = list(K.basis())
+
+    assert(K.dimension() <= d, "isotropic subspace of dimension greater than d!!!")
+
+    #otherwise extensive search?
+    #or is K contained in a maximal isotropic subspace?
+    #I think so since we state that all maximal isotropic have the same size
+    #this hints that maximal means "can't be extended".
+    #So we pick K and extend it to a maximal isotropic subspace
+    if K.dimension() < d:
+        print("need to extend K")
+        V = VectorSpace(GF(q),m)
+        candidates = set(map(hashable,V))
+        toRemove = set()#set of vectors that are not candidates
+        while K.dimension() < d:
+            hashableK = set(map(hashable, K))
+            candidates = candidates.difference(hashableK) #remove all isotropic vectors in K
+            candidates = candidates.difference(toRemove)
+            assert( candidates, "no candidate but K.dim < d")
+            for v in candidates:
+                if v*M*v == 0:
+                    #found another isotropic point
+                    #check if we can add it to K
+                    #is enough to check crap on the basis (look at thesis)
+                    ok = True
+                    for w in isotropicBasis:
+                        if w*M*v+v*M*w != 0:
+                            ok = False
+                            break
+                        
+                    if ok:
+                        isotropicBasis.append(v)
+                        K = V.span(isotropicBasis)
+                    else:
+                        #isotropic, but can't extend K
+                        toRemove.add(v)
+                else:
+                    #not isotropic
+                    toRemove.add(v)
+
+        isotropicBasis = list(K.basis()) #we need vectors to be normalised
+
+    #here K is a maximal totally isotropic subspace
+    assert( len(isotropicBasis) == d, "something wrong with iso basis")
+
+    
+    #now use GAP for the job
+    W = libgap.FullRowSpace(libgap.GF(q), m) #W is GAP version of V
+    isoS = libgap.Subspace(W,isotropicBasis) #isoS is GAP version of K
+
+    allIsoPoints = libgap.Orbit(group,isotropicBasis[0],libgap.OnLines) #assume group is transitive, we have all isotropic projective points
+
+    permutation = libgap.Action(group, allIsoPoints,libgap.OnLines)
+    #we make a permutation group s.t. the OnLines action of group on allIsoPoints is the same as the action of permutation on {1,2,...,|allIsoPoints|}
+    #the above is just to speed things up to avoid matrix multiplications
+    
+    isoSPoints = [libgap.Elements(libgap.Basis(x))[0] for x in libgap.Elements(isoS.Subspaces(1))]
+    #here we have a list of all projective points (represented as normalised vectors) in isoS (which is the maximal totally isotropic subspace)
+
+    isoSPointsInt = libgap.Set([libgap.Position(allIsoPoints, x) for x in isoSPoints])
+    #set of all integers representing the projective points of isoSPoints
+    #this so that permutation can act on it
+
+    allIsoSubspaces = libgap.Orbit(permutation,isoSPointsInt, libgap.OnSets)
+    #assuming group was transitive on maximall isotropic subspaces, here we calculate the orbit of a maximal isotropic subspace
+    #these are our vertices
+
+    intersection_size = (q**(d-1) - 1) / (q-1) #number of projective points in a d-1 subspace
+
+    edges = []
+    n = len(allIsoSubspaces)
+    for i in range(n):
+        seti = allIsoSubspaces[i]
+        for j in range(i+1,n):
+            setj = allIsoSubspaces[j]
+            if libgap.Size(libgap.Intersection(seti,setj)) == intersection_size:
+                edges.append( (i,j) )
+
+    G = Graph(edges, format="list_of_edges")
+    G.name("Dual Polar Graph on Orthogonal group (%d,%d,%d)"%(e,m,q))
+    return G
+
+
 def doubled_odd_graph( int n ):
     r"""
     let X = {1,2,..., 2n +1}
@@ -374,6 +532,54 @@ def double_Grassman(const int q, const int n, const int e):
 
 ################################################################################
 # UNBOUNDED ORDER
+
+def symplectic_cover_of_complete(const int q, const int n):
+    assert(n%2 == 0, "n must be even")
+
+    Fq = GF(q)
+    V = VectorSpace(Fq,n)
+
+    #symplectic form has matrix
+    #  0 I
+    # -I 0
+    M = []
+    n2 = n//2
+    for i in range(n):
+        row = [0]*n
+        if i < n2:
+            row[n2+i] = 1
+        else:
+            row[i-n2] = -1
+        M.append(row)
+    M = Matrix(Fq,M)
+    #now M is the non-degenerate symplectic form
+
+    vectors = list(V)
+    for v in vectors:
+        v.set_immutable()
+
+    edges = []
+    k = len(vectors)
+    for i in range(k):
+        x = vectors[i]
+        for j in range(i+1,k):
+            y = vectors[j]
+            Bxy = x*M*y #B(x,y)
+            Byx = - Bxy
+            for a in Fq:
+                b = a - Bxy
+                b2 = a - Byx
+                edges.append( ( (a,x),(b,y) ) )
+                edges.append( ( (a,y),(b2,x) ) )
+
+    G = Graph(edges, format="list_of_edges")
+    G.name("antipodal %d cover of K_{%d^%d}"%(q,q,n))
+    return G
+
+def bibd_graph(v,k):
+    lmbd = (k*(k-1))//(v-1) #the division should not trucate
+    D = Sage_Designs.balanced_incomplete_block_design(v,k,lmbd=lmbd)
+    return D.incidence_graph()
 
 def complement_Denniston_arc(n):
     r"""
@@ -967,6 +1173,42 @@ def coset_graph( const int q, C_basis, U_basis = None, n = None ):
 
     G = Graph(edges, format='list_of_edges')
     return G
+
+def test_Kasami_graphs():
+    r"""
+    build all kasami graphs of type i for v < 10000
+    """
+
+    from sage.arith.misc import gcd
+    
+    for i in range(1,20):
+        q = 2**i
+        for j in range(1,20):
+            s = q**(2*j+1)
+            for m in range(j+1):
+                if gcd(m,2*j+1) != 1: continue
+
+                t = q**m
+
+                extended_v = 2*q**(4*j+2)
+                v = q**(4*j+2)
+
+                if extended_v < 10000:
+                    G = extended_Kasami_graph(s,t)
+                    if intersection_array_from_graph(G) != [q**(2*j+1), q**(2*j+1)-1, q**(2*j+1)-q, q**(2*j)*(q-1)+1, 1, q, q**(2*j)-1, q**(2*j+1)]:
+                        print("extended code failed values (q,j,m) (%d,%d,%d)"%(q,j,m))
+                    else:
+                        print("extended (q,j,m) (%d,%d,%d) (%d vertices) passed"%(q,j,m,extended_v))
+
+                if v < 10000:
+                    G = Kasami_graph(s,t)
+                    if intersection_array_from_graph(G) !=  [q**(2*j+1)-1, q**(2*j+1)-q, q**(2*j)*(q-1)+1, 1, q, q**(2*j)-1]:
+                        print("failed values (q,j,m) (%d,%d,%d)"%(q,j,m))
+                    else:
+                        print("(q,j,m) (%d,%d,%d) (%d vertices) passed"%(q,j,m,v))
+
+    print("test completed")
+
 
 def extended_Kasami_code(s,t):
     #check s,t are good
