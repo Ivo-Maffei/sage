@@ -533,12 +533,598 @@ def double_Grassman(const int q, const int n, const int e):
 ################################################################################
 # UNBOUNDED ORDER
 
-def symplectic_cover_of_complete(const int q, const int n):
+def test_AB_graph():
+    import time
+    
+    for m in range(100):
+        n = 2*m +1
+        nV = 2**(2*n)
+        if nV > 10000: break
+        start = time.time()
+        G = almost_bent_function_graph(n)
+        end = time.time()
+        if intersection_array_from_graph(G) != [2**n-1,2**n-2,2**(n-1)+1,1,2,2**(n-1)-1]:
+            print("{} failed".format(n))
+        else:
+            print("{} with {} vertices in {}".format(n,nV,end-start))
+
+    print("test done")
+
+def almost_bent_function_graph(const int n):
+    r"""
+    Graph using almost bent function on GF(2)^n
+    """
+
+    assert(n%2 ==1, "n should be odd; no AB known for n even")
+    #if follows that (2,n) = 1
+
+    Fq = GF(2**n)
+    
+    def f(x):
+        return x**13
+        
+        
+    vectors = [x for x in Fq]
+
+    edges = []
+    for i,x in enumerate(vectors):
+        for y in vectors[i+1:]:
+            for a in vectors:
+                b = a + f(x+y)
+                edges.append(( (x,a),(y,b) ))
+                edges.append(( (y,a),(x,b) ))
+
+    G = Graph(edges,format="list_of_edges")
+    return G    
+
+def test_Preparata():
+    import time
+    for t in range(1,100):
+        for i in range(2*t-2,-1,-1):
+            sig_check()
+            q = 2**(2*t-1)
+            Q = 2**(2*t-1-i)#size of Fq/A
+            nV = 2*q*Q
+            if nV > 10000:
+                break
+            start = time.time()
+            G = Preparata_graph(t,i)
+            end = time.time()
+            twoi1 = 2**(i+1) 
+            if intersection_array_from_graph(G) != [2*q-1,2*q-twoi1,1,1,twoi1,2*q-1]:
+                print("%d %d failed"%(t,i))
+            else:
+                print("({},{}) with {} vertices in {}".format(t,i,nV,end-start))
+    print("test done")
+
+def Preparata_graph(t,i):
+    r"""
+    q= 2^(2t -1) |A| = 2^i
+    """
+    q = 2**(2*t-1)
+    Fq= GF(q)
+
+    if i != 0:#then A has some meaning
+        (Fqvec,fromV,toV) = Fq.vector_space(map=True)
+        n = Fqvec.dimension()
+        A = []
+        for j in range(i):
+            v = [0]*n
+            v[j] = 1
+            v = vector(Fqvec.base_field(), v)
+            A.append(v)
+
+        #now A represents a basis for a vector space of dim i
+        A = Fqvec.span(A)
+        A = [ fromV(x) for x in A]
+        #now A is a subgroup of Fq of size 2^i
+        Q = set()
+        toQ = {}
+        Qrep = {}
+        for x in Fq:
+            xA = frozenset( [x+a for a in A])
+            toQ[x] = xA
+            Qrep[xA] = x
+        for k in Qrep:
+            Q.add(Qrep[k])
+            
+    else:
+        Q = Fq
+        
+    edges  = []
+    for x in Fq:
+        x2 = x*x
+        x3 = x2*x
+        for y in Fq:
+            y2 = y*y
+            r = x2*y+x*y2
+            x3py3 = x3+y2*y
+            for a in Q:
+                sig_check()
+                if x != y or r != 0:
+                    b = r+a
+                    if i != 0: b = Qrep[toQ[b]]
+                    edges.append(( (x,0,a),(y,0,b) ))
+                    edges.append(( (x,1,a),(y,1,b) ))
+                b = r + x3py3 +a
+                if i != 0: b = Qrep[toQ[b]]
+                edges.append(( (x,0,a),(y,1,b) ))
+                edges.append(( (x,1,a),(y,0,b) ))
+
+    G = Graph(edges, format="list_of_edges")
+    G.name("Preparata graph on 2^(2%d-1)"%t)
+    return G
+
+def test_Brouwer_Pasechink():
+    import time
+    for q in range(2,100):
+        if not is_prime_power(q): continue
+        if 2*(q**6) < 10000:
+            start = time.time()
+            G = Pasechnik_graph(q)
+            end = time.time()
+            if intersection_array_from_graph(G) != [q**3,q**3-1,q**3-q,q**3-q**2+1,1,q,q**2-1, q**3]:
+                print("{} failed Pasechnik".format(q))
+            else:
+                print("Pasechnik {} with {} vertices in {}".format(q,2*(q**6),end-start))
+        elif q**6 < 10000:
+            start = time.time()
+            G = Brouwer_Pasechnik_graph(q)
+            end = time.time()
+            if intersection_array_from_graph(G) != [q**3-1,q**3-q,q**3-q**2+1,1,q,q**2-1]:
+                print("{} failed Brouwer_Pasechnik".format(q))
+            else:
+                print("Brouwer_Pasechnik{} with {} vertices in {}".format(q,2*(q**6),end-start))
+        else: break
+    print("test done")
+
+def Brouwer_Pasechnik_graph(q):
+
+    Fq = GF(q)
+
+    def cross(v,w):
+        z = [ v[1]*w[2]-v[2]*w[1], v[2]*w[0]-v[0]*w[2], v[0]*w[1]-v[1]*w[0] ]
+        return vector(Fq,z)
+            
+    V = list(VectorSpace(Fq,3))
+    for v in V:
+        v.set_immutable()
+
+    #ensuer V[0] is zero
+    if not V[0].is_zero():
+        for i in range(q**3):
+            if V[i].is_zero():
+                z = V[i]
+                V[i] = V[0]
+                V[0] = z
+
+    edges = []
+    for u in V:
+        for v in V:
+            for v2 in V:
+                if v2 == v: continue #otherwise cross(v,v2) == 0 and u2 == u
+                u2 = u+ cross(v,v2)
+                u2.set_immutable()
+                edges.append(( (u,v),(u2,v2) ))
+
+    G = Graph(edges,format="list_of_edges")
+    G.name("Brouwer-Pasechnik graph on GF(%d)"%q)
+    return G
+
+def Pasechnik_graph(q):
+    H = Brouwer_Pasechnik_graph(q)
+    G = extended_biparitite_double_graph(H)
+    G.name("Pasechnik graph on D_4(%d)"%q)
+    return G
+    
+
+def test_schemes():
+    import time
+    for q in range(2,10000):
+        if not is_prime_power(q): continue
+        for r in Integer(q-1).divisors()[1:]:#r=1 -> complete graph
+            if r*(q+1) > 10000: break
+            S = cyclotomic_scheme(q,r)
+            if ((q-1)//r)% 2 == 1 and is_prime_power(q,get_data=True)[0] != 2:
+                #cyclotomic scheme is not symmetric
+                if S.is_pseudocyclic():
+                    print("({},{}) not symmetric but pseudocyclic".format(q,r))
+                continue
+            start = time.time()
+            G = dist_reg_from_association_scheme(S)
+            end = time.time()
+            mu = (q-1)//r
+            if intersection_array_from_graph(G) != [q,q-1-mu,1,1,mu,q]:
+                print("({},{}) failed".format(q,r))
+            else:
+                print("({},{}) with {} vertices in {}".format(q,r,r*(q+1),end-start))
+    print("test done")
+            
+
+class AssociationScheme:
+
+    def _is_association_scheme(self):
+
+        #check matrix size
+        if self._matrix.ncols() != self._nX:
+            print("matrix has wrong size")
+        
+        #check R0
+        for i in range(self._nX):
+            if self._matrix[i][i] != 0:
+                print("identity is not R_0")
+            
+        
+        #check symmetries
+        for i in range(self._nX):
+            for j in range(i+1,self._nX):
+                if self._matrix[i][j] != self._matrix[j][i]:
+                    print("not symmetric")
+            
+
+        #check intersection numbers
+        self.compute_intersection_numbers()
+        r1 = self._r+1
+        for i in range(r1):
+            Ri = self.R(i)
+            for j in range(r1):
+                Rj = self.R(j)
+                for k in range(r1):
+                    Rk = self.R(k)
+                    pijk = self.p(i,j,k)
+                    for (x,y) in Rk:
+                        count = 0
+                        for z in self._X:
+                            if (x,z) in Ri and (z,y) in Rj:
+                                count += 1
+                        if pijk != count:
+                            print("failed p{}{}{} with pair ({},{})".format(i,j,k,x,y))
+                            return False
+        return True
+        
+        
+    def __init__(self, points, matrix, check=True):
+        self._X = list(points)
+        self._nX = len(self._X)
+        self._XtoInt = { x: i for i,x in enumerate(self._X)}
+        self._matrix = Matrix(matrix)
+
+        #compute number of classes
+        self._r = 0
+        for r in self._matrix:
+            for c in r:
+                if c > self._r: self._r = c
+
+        #empty intersection array
+        r1 = self._r+1
+        self._P = [ [ [None for k in range(r1) ] for j in range(r1)] for i in range(r1)]
+
+        if check:
+            if not self._is_association_scheme():
+                raise ValueError("input given is not an association scheme")
+            
+
+    def ground_set(self):
+        return self._X
+
+    def num_points(self):
+        return self._nX
+
+    def matrix(self):
+        return self._matrix
+
+    def num_classes(self):
+        return self._r
+
+    def has_relation(self,x,y,i):
+        return self.which_relation(x,y)  == i
+
+    def which_relation(self,x,y):
+        return self._matrix[self._XtoInt[x]][self._XtoInt[y]]
+    
+    def R(self,i):
+        Ri = set()
+        for i in range(self._nX):
+            for j in range(i+1,self._nX):
+                if self._matrix[i][j] == i:
+                    Ri.add((self._X[i],self._X[j]))
+                    Ri.add((self._X[j],self._X[i]))
+
+        return Ri
+
+    def p(self,i,j,k):
+        if self._P[i][j][k] is not None: return self._P[i][j][k]
+
+        r1 = self._r+1
+
+        self._P[i][j][k] = 0
+        for x in range(r1):
+            for y in range(r1):
+                if self._matrix[x][y] == k:
+                    break
+            else:
+                continue
+            break
+
+        assert(self._matrix[x][y] == k, "something wrong")
+
+        #now (x,y) in R_k
+        for z in range(r1):
+            if self._matrix[x][z] == i and self._matrix[z][y] == j:
+                self._P[i][j][k] += 1
+
+        return self._P[i][j][k]
+        
+
+    def compute_intersection_numbers(self):
+        if self._P is not None: return
+        r1 = self._r+1
+        for i in range(r1):
+            for j in range(r1):
+                for k in range(r1):
+                    self.p(i,j,k)
+
+    def is_pseudocyclic(self):
+        #we need p_{ii}^0 to be a constant f for 1<= i <= r
+        #we need sum_{i} p_{ii}^k = f-1 for 1 <= k <= r
+        r1 = self._r+1
+        f = self.p(1,1,0)
+        for i in range(2,r1):
+            if self.p(i,i,0) != f:
+                return False
+
+        for k in range(1,r1):
+            sumP = 0
+            for i in range(r1):
+                sumP += self.p(i,i,k)
+
+            if sumP != f-1:
+                return False
+        return True
+
+
+def cyclotomic_scheme(q,r,check=False):
+    #for (q-1)/r even or q power of 2, then the association scheme is symmetric
+    #and pseudocyclic
+
+    assert( (q-1)%r == 0, "q=rm+1 is not respected")
+
+    Fq = GF(q)
+    X = list(Fq)
+    XtoInt = { x: i for i,x in enumerate(X) }
+    
+    relations = [ [0 for i in range(q)] for j in range(q)] #qxq matrix
+
+    a = Fq.primitive_element()
+    ar = a**r
+    m = (q-1)//r
+    K = [ ar**i for i in range(m)]
+    for i in range(1,r+1):
+        ai=a**i
+        aiK = [ ai*x for x in K]
+        for x in X:
+            for z in aiK:
+                y = x+z
+                relations[XtoInt[x]][XtoInt[y]] = i
+
+    return AssociationScheme(X,relations,check)
+
+
+def dist_reg_from_association_scheme(scheme, inf = "inf"):
+    r"""
+    We assume (X,Rs) is an association scheme
+    We also assume R_0 is not in Rs
+    Also assume X = {0,...,n} for some n so that
+    """
+    assert( inf not in scheme.ground_set(), "a must not be in the scheme")
+
+    r = scheme.num_classes()
+    X = scheme.ground_set()
+    I = list(range(1,r+1))
+
+    edges = []
+    for x in X:
+        for i in I:
+            edges.append(( (inf,i),(x,i) ))
+
+    n = scheme.num_points()
+    for x in range(n):
+        for y in range(x+1,n):
+            ij = scheme.matrix()[x][y]
+            for i in I:
+                j = (ij -i)%r
+                if j == 0: j = r
+                edges.append(( (X[x],i),(X[y],j) ))
+                edges.append(( (X[y],i),(X[x],j) ))
+    
+    G = Graph(edges,format="list_of_edges")
+    return G
+
+def dist_reg_from_GQ_spread(GQ, S):
+    r"""
+    point graph of the generalised quadrangle without its spred
+    """
+    k = len(GQ.blocks()[0])
+    edges = []
+    for b in GQ.blocks():
+        if b in S: continue
+        for i in range(k):
+            p1 = b[i]
+            for j in range(i+1,k):
+                p2 = b[j]
+                edges.append( (p1,p2) )
+
+    G = Graph(edges, format="list_of_edges")
+    return G
+
+def dist_reg_from_GQ_ovoid(GQ,ovoid):
+    r"""
+    Given a gen quadrangle with an ovoid, we compute the graph
+    that we would get from its dual with a spread
+    """
+
+    #vertices are lines of GQ
+    #2 lines are adjecent if their instersection is non-empty and is not in ovoid
+    #so we could remove ovoid from all lines and then only worry about non-emptyness
+    setOvoid = set(ovoid)
+
+    newBlocks = [ set(line).difference(setOvoid) for line in GQ.blocks() ]
+    
+    edges = []
+    for i,line in enumerate(newBlocks):
+        sline = set(line)
+        for j in range(i+1,GQ.num_blocks()):
+            line2 = newBlocks[j]
+            if sline.intersection(line2):
+                edges.append( (i,j) )
+
+    G = Graph(edges,format="list_of_edges")
+    return G
+
+
+def generalised_quadrangle_hermitean(q):
+    r"""
+    Another way of making H(3,q^2)
+    """
+
+    GU = libgap.GU(4,q)
+    H = libgap.InvariantSesquilinearForm(GU)["matrix"]
+    Fq = libgap.GF(q*q)
+    zero = libgap.Zero(Fq)
+    one = libgap.One(Fq)
+    V = libgap.FullRowSpace(Fq,4)
+
+    e1 = [one,zero,zero,zero] #isotropic point
+    assert( e1*H*e1 == zero, "e1 not isotropic")
+    print("found iso point")
+
+    points = list(libgap.Orbit(GU,e1,libgap.OnLines)) #all isotropic points
+    pointInt = { x:(i+1) for i,x in enumerate(points) } #+1 because GAP starts at 1
+    #points is the hermitean variety
+
+    GUp = libgap.Action(GU, points, libgap.OnLines)#GU as permutation group of points
+
+    e2 = [zero,one,zero,zero]
+    #we have totally isotropic line
+    line = V.Subspace([e1,e2])
+    lineAsPoints = [libgap.Elements(libgap.Basis(b))[0] for b in libgap.Elements(line.Subspaces(1)) ]
+    line = libgap.Set([ pointInt[p] for p in lineAsPoints ])
+    print("found iso line")
+
+    lines = libgap.Orbit(GUp, line, libgap.OnSets)#all isotropic lines
+    #print(len(lines))
+
+    #to find ovoid, we embed H(3,q^2) in H(4,q^2)
+    #then embedding is (a,b,c,d) -> (a,b,0,c,d) [so we preserve isotropicity]
+    #then find a point in the latter and not in the former
+    #this point will be collinear in H(3,q^2) to all (and only) the points in a ovoid
+    W = libgap.FullRowSpace(Fq,5)
+    J = [ [0,0,0,0,1],[0,0,0,1,0],[0,0,1,0,0],[0,1,0,0,0],[1,0,0,0,0]]
+    J = libgap(J)
+    if q%2 == 1:
+        (p,k) = is_prime_power(q,get_data=True)
+        a = (p-1)// 2
+        aGap = zero
+        for i in range(a):
+            aGap += one
+        p = [zero,one,one,aGap,zero]
+    else:
+        #we assume that x^q +x +1 = 0 has a root (true for q <= 2^18, I don't know about higher)
+        for x in libgap.Elements(Fq):
+            if x**q +x +one == zero:
+                p = [zero,one,one,x,zero]
+                break
+            
+    print("building ovoid")
+    #now p is a point of H(4,q^2)
+
+    #p' is collinear to p iff p'Jp^q = 0
+    #note that p'Jp^q = bx^q + c where p' =(a,b,0,c,d) and p=(0,1,1,x,0)
+    #hece we have points (0,0,0,1); (0,1,c,a) for any a iff c^q+c = 0 (c = -x^q)
+    #and (1,b,c,x) for any x and any b (c= -bx^q) iff it is an iso point
+    #so we need only q^2 (for last case) +1 (for 2nd case) checks 
+    ovoid = []
+    xq = p[3]**q
+    for p2 in points:
+        if p2[1]*xq+p2[2] == zero: #p collinear to newP2
+            ovoid.append(libgap(pointInt[p2]))
+
+    from sage.combinat.designs.incidence_structures import IncidenceStructure
+    D = IncidenceStructure(lines)
+    return (D,ovoid)
+
+def is_ovoid(D,ovoid):
+    setOvoid = set(ovoid)
+    for line in D.blocks():
+        l = [Integer(x) for x in line]
+        if len(setOvoid.intersection(l)) != 1:
+            print(line)
+            return False
+
+    return True
+
+
+def test_symplectic():
+    import time
+    
+    for q in [16,17,19,23,25,27]:
+        for r in Integer(q).divisors()[1:]:#this removes the case r = 1
+            for n in range(2,20,2):
+                arr = [q**n-1,(r-1)*q**n/r,1,1,q**n/r, q**n-1]
+                nV = number_of_vertices_from_intersection_array(arr)
+                if nV < 10000:
+                    start = time.time()
+                    G = symplectic_cover_of_complete(q,n,r)
+                    end = time.time()
+                    if intersection_array_from_graph(G) != arr:
+                        print("{} {} {} failed".format(q,n,r))
+                    else:
+                        print("{} {} {} with {} vertices done in {}".format(q,n,r,nV,end-start))
+                else:
+                    break
+    print("test done")
+
+    
+def symplectic_cover_of_complete(const int q, const int n, r = None):
+    r"""
+    (q,n,r) build a dist reg graph. If r == q, then we have a antipodal q cover of K_q^n
+    """
+    if r == None:
+        r = q
     assert(n%2 == 0, "n must be even")
+    assert(q%r == 0 and r != 1, "r must be a factor of q and not 1")
+
+    def ei(i,m):
+        v = [0]*m
+        v[i] = 1
+        return v
 
     Fq = GF(q)
     V = VectorSpace(Fq,n)
 
+    if r != q:
+        #we need A to be a subgroup of the additive group of Fq
+        #so we make Fq a vectorspace and A is a subspace
+        (Fqvec,fromVec,toVec) = Fq.vector_space(map=True)
+        (p,k) = is_prime_power(r,get_data=True)
+        Adim = Fqvec.dimension() -k
+        A = Fqvec.span([ei(i,Fqvec.dimension()) for i in range(Adim)])
+        A = [ fromVec(x) for x in A ]
+
+        Q = set()
+        toQ = {}# map a -> a+A
+        Qrep = {}#map a+A -> a (pick unique representative for each a+A)
+        for x in Fq:
+            xA = frozenset([x+a for a in A])
+            Q.add(xA)
+            toQ[x] = xA
+            Qrep[xA] = x
+        Q = set([ Qrep[xA] for xA in Q])
+
+    else:
+        Q = Fq
+
+    
     #symplectic form has matrix
     #  0 I
     # -I 0
@@ -552,7 +1138,7 @@ def symplectic_cover_of_complete(const int q, const int n):
             row[i-n2] = -1
         M.append(row)
     M = Matrix(Fq,M)
-    #now M is the non-degenerate symplectic form
+
 
     vectors = list(V)
     for v in vectors:
@@ -564,16 +1150,20 @@ def symplectic_cover_of_complete(const int q, const int n):
         x = vectors[i]
         for j in range(i+1,k):
             y = vectors[j]
-            Bxy = x*M*y #B(x,y)
+            Bxy = x*M*y
             Byx = - Bxy
-            for a in Fq:
-                b = a - Bxy
-                b2 = a - Byx
+            for b in Q:
+                a = b + Bxy
+                a2 = b + Byx
+                if r != q:
+                    a = Qrep[toQ[a]]
+                    a2 = Qrep[toQ[a2]]
+                   
                 edges.append( ( (a,x),(b,y) ) )
-                edges.append( ( (a,y),(b2,x) ) )
+                edges.append( ( (a2,y),(b,x) ) )
 
     G = Graph(edges, format="list_of_edges")
-    G.name("antipodal %d cover of K_{%d^%d}"%(q,q,n))
+    G.name("antipodal %d cover of K_{%d^%d}"%(q,q,n))#to be changed
     return G
 
 def bibd_graph(v,k):
@@ -634,90 +1224,6 @@ def complement_Denniston_arc(n):
     G = Graph(edges,format="list_of_edges")
     G.name("Incidence graph of the complement of a complete %d-arc in PG(2,%d)"%(n,q))
     return G
-
-def gen_quadrangle2(q):
-    "return the quadrangle Q(5,q)"
-    Fq = GF(q)
-    V = VectorSpace(Fq,6)
-
-    if q % 2 == 1:
-        b = 0
-        c = - Fq.primitive_element()
-    elif q == 2:
-        b = 1
-        c = 1
-    else:
-        c = 1
-        elems = set([x for x in Fq])
-        for x in Fq:
-            if x == 0: continue
-            try:
-                elems.remove( x+ 1/x)
-            except KeyError: #x+1/x not in elems which is ok
-                pass
-        b = elems.pop()#any of this will do
-    
-    def quadric(v):
-        res = v[0]*v[0]+v[2]*v[3] + v[4]*v[5]
-        res += b*v[0]*v[1] + c*v[1]*v[1]
-        return res
-
-    points = []
-    for P in V.subspaces(1):
-        v = P.basis()[0]
-        if quadric(v) == 0:
-            points.append(v)
-    print("done points")
-    
-    lines = []
-    for L in V.subspaces(2):
-        line = []
-        lineSize = 0
-        for p in points:
-            if p in L:
-                line.append(p)
-                lineSize+= 1
-            if lineSize == q+1: break
-        if line :
-            lines.append(line)
-    print("done lines")
-    from sage.combinat.designs.incidence_structures import IncidenceStructure
-    D = IncidenceStructure(points= points, blocks = lines)
-    return D
-    
-
-def gen_quadrangle(q):
-    "return the quadrangle H(3,q^2)"
-    def h(v):
-        res = 0
-        for x in v:
-            res += x**(q+1)
-        return res
-
-    V = VectorSpace(GF(q**2),4)
-    points = [ ]
-    for P in V.subspaces(1):
-        v = P.basis()[0]
-        if h(v) == 0:
-            points.append(v)
-
-    #points = [ p | h(p) == 0] and p is a point in the projective space
-
-    lines = []
-    for L in V.subspaces(2):
-        #L is a line
-        line = []
-        for p in points:
-            if p in L:
-                line.append(p)
-        if line:
-            lines.append(line)
-
-    #now we have points and lines
-    from sage.combinat.designs.incidence_structures import IncidenceStructure
-    D = IncidenceStructure(points= points, blocks = lines)
-    return D
-
 
 def unitary_nonisotropic_graph(q):
     r"""
