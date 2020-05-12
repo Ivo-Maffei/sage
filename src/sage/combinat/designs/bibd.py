@@ -69,18 +69,15 @@ def balanced_incomplete_block_design(v, k, lmbd = 1, existence=False, use_LJCR=F
 
     A Balanced Incomplete Block Design of parameters `v,k` is a collection
     `\mathcal C` of `k`-subsets of `V=\{0,\dots,v-1\}` such that for any two
-    distinct elements `x,y\in V` there is a unique element `S\in \mathcal C`
+    distinct elements `x,y\in V` there are `\lambda` elements `S\in \mathcal C`
     such that `x,y\in S`.
-
-    More general definitions sometimes involve a `\lambda` parameter, and we
-    assume here that `\lambda=1`.
 
     For more information on BIBD, see the
     :wikipedia:`corresponding Wikipedia entry <Block_design#Definition_of_a_BIBD_.28or_2-design.29>`.
 
     INPUT:
 
-    - ``v,k`` (integers)
+    - ``v,k,lmbd`` (integers)
 
     - ``existence`` (boolean) -- instead of building the design, return:
 
@@ -172,25 +169,26 @@ def balanced_incomplete_block_design(v, k, lmbd = 1, existence=False, use_LJCR=F
         sage: designs.balanced_incomplete_block_design(21,6,existence=True)
         False
     """
-    #need work to make sure it works
-    assert(lmbd == 1, "not implemented yet")
 
     # yet BIBD
-    if v == 1:
+    if v == 1 and k in {0,1}:
         if existence:
             return True
-        return BalancedIncompleteBlockDesign(v, [], check=False)
+        if k == 0:
+            return BalancedIncompleteBlockDesign(v, [], check=False)
+        if k == 1:
+            return BalancedIncompleteBlockDesign(v, [[0]], check=False)
 
     if k == v:
         if existence:
             return True
-        return BalancedIncompleteBlockDesign(v, [list(range(v))], check=False, copy=False)
+        return BalancedIncompleteBlockDesign(v, [list(range(v)) for i in range(lmbd)],lambd=lmbd, check=False, copy=False)
 
     # Non-existence of BIBD
     if (v < k or
         k < 2 or
-        (v-1) % (k-1) != 0 or
-        (v*(v-1)) % (k*(k-1)) != 0 or
+        (lmbd*(v-1)) % (k-1) != 0 or
+        (lmbd*v*(v-1)) % (k*(k-1)) != 0 or
         # From the Handbook of combinatorial designs:
         #
         # With lambda>1 other exceptions are
@@ -198,7 +196,7 @@ def balanced_incomplete_block_design(v, k, lmbd = 1, existence=False, use_LJCR=F
         (k==6 and v in [36,46]) or
         (k==7 and v == 43) or
         # Fisher's inequality
-        (v*(v-1))/(k*(k-1)) < v):
+        (lmbd*v*(v-1))/(k*(k-1)) < v):
         if existence:
             return False
         raise EmptySetError("There exists no ({},{},{})-BIBD".format(v,k,lmbd))
@@ -207,16 +205,16 @@ def balanced_incomplete_block_design(v, k, lmbd = 1, existence=False, use_LJCR=F
         if existence:
             return True
         from itertools import combinations
-        return BalancedIncompleteBlockDesign(v, combinations(list(range(v)),2), check=False, copy=True)
-    if k == 3:
+        return BalancedIncompleteBlockDesign(v, [ [x,y] for i in range(lmbd) for x in range(v) for y in range(v) if x != y], lambd=lmbd, check=False, copy=True)
+    if k == 3 and lmbd == 1:
         if existence:
             return v%6 == 1 or v%6 == 3
         return steiner_triple_system(v)
-    if k == 4:
+    if k == 4 and lmbd == 1:
         if existence:
             return v%12 == 1 or v%12 == 4
         return BalancedIncompleteBlockDesign(v, v_4_1_BIBD(v), copy=False)
-    if k == 5:
+    if k == 5 and lmbd == 1:
         if existence:
             return v%20 == 1 or v%20 == 5
         return BalancedIncompleteBlockDesign(v, v_5_1_BIBD(v), copy=False)
@@ -227,27 +225,27 @@ def balanced_incomplete_block_design(v, k, lmbd = 1, existence=False, use_LJCR=F
     if (v,k,lmbd) in BIBD_constructions:
         if existence:
             return True
-        return BlockDesign(v,BIBD_constructions[(v,k,lmbd)](), copy=False)
-    if BIBD_from_arc_in_desarguesian_projective_plane(v,k,existence=True):
+        return BalancedIncompleteBlockDesign(v,BIBD_constructions[(v,k,lmbd)](),lambd=lmbd, copy=False)
+    if lmbd == 1 and BIBD_from_arc_in_desarguesian_projective_plane(v,k,existence=True):
         if existence:
             return True
         B = BIBD_from_arc_in_desarguesian_projective_plane(v,k)
         return BalancedIncompleteBlockDesign(v, B, copy=False)
-    if BIBD_from_TD(v,k,existence=True) is True:
+    if lmbd == 1 and BIBD_from_TD(v,k,existence=True) is True:
         if existence:
             return True
         return BalancedIncompleteBlockDesign(v, BIBD_from_TD(v,k), copy=False)
-    if v == (k-1)**2+k and is_prime_power(k-1):
+    if lmbd == 1 and v == (k-1)**2+k and is_prime_power(k-1):
         if existence:
             return True
         from .block_design import projective_plane
         return BalancedIncompleteBlockDesign(v, projective_plane(k-1),copy=False)
-    if difference_family(v,k,existence=True) is True:
+    if difference_family(v,k,l=lmbd,existence=True) is True:
         if existence:
             return True
-        G,D = difference_family(v,k)
-        return BalancedIncompleteBlockDesign(v, BIBD_from_difference_family(G,D,check=False), copy=False)
-    if use_LJCR:
+        G,D = difference_family(v,k,l=lmbd)
+        return BalancedIncompleteBlockDesign(v, BIBD_from_difference_family(G,D,check=False), lambd=lmbd,copy=False)
+    if lmbd == 1 and use_LJCR:
         from .covering_design import best_known_covering_design_www
         B = best_known_covering_design_www(v,k,2)
 
@@ -451,8 +449,8 @@ def BIBD_from_TD(v,k,existence=False):
 
     # Second construction
     elif ((v-1)%k == 0 and
-        balanced_incomplete_block_design((v-1)//k+1,k,existence=True) and
-        transversal_design(k,(v-1)//k,existence=True)):
+        balanced_incomplete_block_design((v-1)//k+1,k,existence=True) is True and
+        transversal_design(k,(v-1)//k,existence=True)) is True:
 
         if existence:
             return True

@@ -428,6 +428,9 @@ ext_modules = [
     Extension('sage.graphs.distance_regular_sporadic',
               sources = ['sage/graphs/distance_regular/distance_regular_sporadic.pyx']),
 
+    Extension('sage.graphs.distance_regular_related_objects',
+              sources = ['sage/graphs/distance_regular/related_objects.pyx']),
+
     Extension('sage.graphs.graph_decompositions.rankwidth',
               sources = ['sage/graphs/graph_decompositions/rankwidth.pyx'],
               libraries=['rw']),

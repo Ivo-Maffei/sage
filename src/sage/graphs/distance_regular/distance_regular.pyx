@@ -33,7 +33,7 @@ from cysignals.signals cimport sig_check
 # sage imports
 from sage.graphs.graph_generators import GraphGenerators
 from sage.graphs.graph import Graph
-from sage.arith.misc import is_prime_power
+from sage.arith.misc import is_prime_power, is_prime
 from sage.combinat.q_analogues import q_binomial
 from sage.combinat.integer_vector import IntegerVectors
 from sage.matrix.matrix_space import MatrixSpace
@@ -54,6 +54,9 @@ from sage.misc.unknown import Unknown
 
 from sage.graphs.distance_regular_codegraphs import coset_graph
 from sage.graphs.distance_regular_sporadic import *
+from sage.graphs.distance_regular_related_objects import (pseudocyclic_association_scheme,
+                                                          two_graph, Kasami_code, extended_Kasami_code,
+                                                          generalised_quadrangle_with_spread)
 
 ################################################################################
 # UNBOUNDED DIAMETER
@@ -78,8 +81,6 @@ def graph_from_genHad(G,M):
     #vertices is {1,...,n} x G, n is size of M
     # (i,g) ~ (j,h) iff  and gM[i,j] = h
 
-
-    
     edges = []
     for i in range(n2):
         for g in G:
@@ -113,41 +114,7 @@ def Ustimenko_graph(m,q):
                     edgesToAdd.append( (u,v) )
 
     G.add_edges(edgesToAdd)
-    return G
-
-def test_dual_polar_orthogonal():
-
-    numVer = lambda arr: number_of_vertices_from_intersection_array(arr)
-
-    for d in range(3,10):
-        for q in [2,3,4,5,7,8,9,11,13,16]:
-            arr0 = intersection_array_from_classical_parameters(d,q,0,q)
-            arr1 = intersection_array_from_classical_parameters(d,q,0,1)
-            arrm1 = intersection_array_from_classical_parameters(d,q,0,q*q)
-
-            if numVer(arr0) < 10000:
-                print("(%d,%d,%d) = %d vertices"%(0,d,q,numVer(arr0)))
-                G = dual_polar_orthogonal(0,d,q)
-                print("(%d,%d,%d) built"%(0,d,q))
-                if intersection_array_from_graph(G) != arr0:
-                    print("failed parameters (%d,%d,%d)"%(0,d,q))
-
-            if numVer(arr1) < 10000:
-                print("(%d,%d,%d) = %d vertices"%(1,d,q,numVer(arr1)))
-                G = dual_polar_orthogonal(1,d,q)
-                print("(%d,%d,%d) built"%(1,d,q))
-                if intersection_array_from_graph(G) != arr1:
-                    print("failed parameters (%d,%d,%d)"%(1,d,q))
-
-            if numVer(arrm1) < 10000:
-                print("(%d,%d,%d) = %d vertices"%(-1,d,q,numVer(arrm1)))
-                G = dual_polar_orthogonal(-1,d,q)
-                print("(%d,%d,%d) built"%(-1,d,q))
-                if intersection_array_from_graph(G) != arrm1:
-                    print("failed parameters (%d,%d,%d)"%(-1,d,q))
-
-    print("tested completed")
-            
+    return G            
 
 def dual_polar_orthogonal(const int e, const int  d, const int q):
     r"""
@@ -183,42 +150,34 @@ def dual_polar_orthogonal(const int e, const int  d, const int q):
     #this hints that maximal means "can't be extended".
     #So we pick K and extend it to a maximal isotropic subspace
     if K.dimension() < d:
-        print("need to extend K")
         V = VectorSpace(GF(q),m)
-        candidates = set(map(hashable,V))
-        toRemove = set()#set of vectors that are not candidates
+        candidates = set(map(hashable,[P.basis()[0] for P in V.subspaces(1)]))
         while K.dimension() < d:
-            hashableK = set(map(hashable, K))
+            hashableK = set(map(hashable, [P.basis()[0] for P in K.subspaces(1)]))
             candidates = candidates.difference(hashableK) #remove all isotropic vectors in K
-            candidates = candidates.difference(toRemove)
             assert( candidates, "no candidate but K.dim < d")
-            for v in candidates:
+            found = False
+            while not found:
+                v = candidates.pop()
                 if v*M*v == 0:
                     #found another isotropic point
                     #check if we can add it to K
                     #is enough to check crap on the basis (look at thesis)
-                    ok = True
+                    found  = True
                     for w in isotropicBasis:
                         if w*M*v+v*M*w != 0:
-                            ok = False
+                            found  = False
                             break
-                        
-                    if ok:
-                        isotropicBasis.append(v)
-                        K = V.span(isotropicBasis)
-                    else:
-                        #isotropic, but can't extend K
-                        toRemove.add(v)
-                else:
-                    #not isotropic
-                    toRemove.add(v)
+            #while found
+            isotropicBasis.append(v)
+            K = V.span(isotropicBasis)
+        #while K.dimension
 
         isotropicBasis = list(K.basis()) #we need vectors to be normalised
 
     #here K is a maximal totally isotropic subspace
     assert( len(isotropicBasis) == d, "something wrong with iso basis")
 
-    
     #now use GAP for the job
     W = libgap.FullRowSpace(libgap.GF(q), m) #W is GAP version of V
     isoS = libgap.Subspace(W,isotropicBasis) #isoS is GAP version of K
@@ -269,6 +228,9 @@ def doubled_odd_graph( int n ):
     diameter 2n+1
     b_i = (n+1)-c_i and c_{2i} = c_{2i-1} = i
     """
+
+    if n < 1:
+        raise ValueError("n must be >= 1")
     # construction:
     # get oll subsets of X of size n
     # for each such set s1, add a number not in s to create s2
@@ -280,6 +242,7 @@ def doubled_odd_graph( int n ):
         #s1 is a list
         #iterate through it and create s2
         for i in range(2*n+1):
+            sig_check()
             if s1[i] == 0:
                 s2 = list(s1)
                 s2[i] = 1
@@ -300,6 +263,8 @@ def bilinear_form_graph(const int d, const int e, const int q):
 
     classical (\min (d,e), q, q-1 , q^{\max(d,e)}-1)
 
+    need sage -i meataxe
+
     INPUT:
 
     - ``d,e`` -- integers
@@ -310,7 +275,6 @@ def bilinear_form_graph(const int d, const int e, const int q):
     TESTS::
     
     """
-
     matricesOverq = MatrixSpace( GF(q), d, e, implementation='meataxe' )
 
     rank1Matrices = []
@@ -487,6 +451,9 @@ def halved_cube( int n ):
     
         return counter
 
+    if n <= 2:
+        raise ValueError("we need n > 2")
+
     #construct the halved cube graph 1/2 Q_n ( = Q_{n-1} ^2 )
     G = GraphGenerators.CubeGraph(n-1)
     # now square the graph
@@ -504,7 +471,7 @@ def halved_cube( int n ):
     
 
 
-def Grassmann( const int q, const int n, const int input_e ):
+def Grassmann_graph( const int q, const int n, const int input_e ):
     r"""
 
     Return a Grassmann graph with parameters ``(q,n,e)``.
@@ -516,8 +483,7 @@ def Grassmann( const int q, const int n, const int input_e ):
 
     (e,q,q, gbinom {n-e+1} 1 _q -1)
 
-    INPUT:
-   
+    INPUT:   
     - ``q`` -- a prime power
     - ``n, e`` -- integers with ``n > e+1``
 
@@ -537,34 +503,34 @@ def Grassmann( const int q, const int n, const int input_e ):
     e = input_e
     if n < 2*input_e:
         e = n - input_e
-        
     
     PG = Sage_Designs.ProjectiveGeometryDesign(n-1, e-1, q)
     #we want the intersection graph
     #the size of the intersection must be (q^{e-1} - 1) / (q-1)
-    cdef int size = (q**(e-1) -  1)/(q-1)
+    size = (q**(e-1) -  1)/(q-1)
     G = PG.intersection_graph([size])
     G.name("Grassmann graph J_%d(%d,%d)"%(q,n,e))
     return G
 
-def double_Grassmann(const int q, const int n, const int e):
+def doubled_Grassmann_graph(const int q, const int e):
     r"""
-    vertices : e, e+1 dimensional subsets of (F_q)^n
+    vertices : e, e+1 dimensional subsets of (F_q)^(2*e+1)
     edges: (u,v) if u\neq v and (u \in v or v \in u)
 
     $b_i = (e+1)-c_i$ and $c_{2i} = c_{2i-1} = i$
     """
+    
+    cdef int n = 2*e+1
 
-    PG1 = Sage_Designs.ProjectiveGeometryDesign(n-1,e-1,q)
-    PG2 = Sage_Designs.ProjectiveGeometryDesign(n-1,e,q)
+    V = VectorSpace(GF(q),n)
 
     edges = []
-    for b in PG1.blocks():
-        b1 = frozenset(b)
-        for b2 in PG2.blocks():
-            if b1.issubset(b2):
-                edges.append( (b1,frozenset(b2)) )
-
+    for W in V.subspaces(e+1):
+        Wbasis = frozenset(W.basis())
+        for U in W.subspaces(e):
+            Ubasis = frozenset(U.basis())
+            edges.append( ( Wbasis, Ubasis ))
+    
     G = Graph(edges,format='list_of_edges')
     G.name("Double Grassmann graph (%d,%d,%d)"%(n,e,q))
     return G
@@ -572,13 +538,47 @@ def double_Grassmann(const int q, const int n, const int e):
 ################################################################################
 # UNBOUNDED ORDER
 
-def hermitean_cover(q,r):
+def is_hermitean_cover(list arr):
+    if len(arr) != 6:
+        return None
+
+    k = arr[0] #q^3
+    (p,n) = is_prime_power(k,get_data=True)#p^n == k
+    if not is_prime(p):
+        return None
+
+    q = p**(n//3)
+    mu = arr[4]#c_2
+    r = arr[1]//mu +1
+
+    if arr != [q**3,(r-1)*mu,1,1,mu,q**3]:
+        return None
+
+    if (q*q-1)% r != 0:
+        return None
+
+    m = (q*q-1)//r
+    
+    if mu == (q+1)*m:
+        #case ii, iii
+        if q % 2 == 0 and (q+1)% r == 0:
+            #case ii
+            return (q,r)
+        if q%2 == 1 and ((q+1)//2)%r == 0:
+            #case iii
+            return (q,r)
+        return None
+    
+    if mu == (q**3 -1)//r and r%2 == 1 and (q-1)%r == 0:
+        #case i
+        return (q,r)
+    
+    return None
+
+def hermitean_cover(const int q,const int r):
 
     if not is_prime_power(q):
         raise ValueError("invalid input: q must be prime power")
-
-    if (q*q-1)%r != 0:
-        raise ValueError("r must divide q^2-1")
 
     if r%2 == 1 and (q-1)%r == 0:
         pass
@@ -589,63 +589,74 @@ def hermitean_cover(q,r):
     else:
         raise ValueError("invalid input")
 
-    Fq2 = GF(q*q)
-    V = VectorSpace(Fq2, 3)
-
-    g = Fq2.primitive_element()
-    Ksize = (q*q-1)// r
-    Kgen = g**r
-    K = set([ Kgen**i for i in range(Ksize)])
+    Fq2 = libgap.GF(q*q)
+    one = libgap.One(Fq2)
+    zero = libgap.Zero(Fq2)
+    gen = libgap.Z(q*q)
     
-    Kset = {}
-    Krep = {}
-    for x in Fq2:
-        if x.is_zero(): continue #0 not in Fq2^*
-        xK = frozenset([ x*k for k in K])
-        Kset[x] = xK
-        Krep[xK] = x
+    #Kgen = gen**r
+    # <gen> / <gen^r> = [ gen^i <gen^r> for i in range(r) ]
+    #to prove above we have that RHS subset LHS
+    #note also any 2 in RHS are distinct
+    #so size RHS = size LHS
 
-    KrepSet = set()#set of representatives of Fq2/K
-    for s in Krep:
-        KrepSet.add(Krep[s])
-
-    oneK = Krep[Kset[1]]
-
+    #it follows that representatives of Fq2^* / K = [gen^i for i in range(r)]
+    Kreps = [ gen**i for i in range(r) ]
+    
     #vertices are Kv for isotropic v
     GU = libgap.GU(3,q)
-    J = Matrix(libgap.InvariantSesquilinearForm(GU)["matrix"])
-    e1 = vector(Fq2,[1,0,0])
-
+    e1 = [one,zero,zero]
     iso_points = libgap.Orbit(GU,e1,libgap.OnLines)
-    print(len(iso_points))
 
-    vertices = [ (libgap(k),v) for k in KrepSet for v in iso_points ]
-    print(len(vertices))
+    vertices = [ k*v for k in Kreps for v in iso_points ]
 
-    gapActionOnVertices = libgap.eval("OnPairLines:= function( pair, g) return [pair[0],OnLines(pair[1],g)];end;")
+    #create global variable for function
+    libgap.set_global("zero",zero)
+    libgap.set_global("r",r)
+    libgap.set_global("gen",gen)
 
-    GUAction = libgap.Action(GU,vertices,gapActionOnVertices)
+    #we need to define the action of GU on (k,v)
+    func = """OnKLines := function(v,M)
+        local w, i, b, k;
 
-    e11 = vector(Fq2,[1,0,1])
-    #(e1,e11) is an edge
+        w := ShallowCopy(v*M);
+
+        i := 1;
+        while i < 4 do
+            if w[i] <> zero then
+                break;
+            fi;
+            i := i+1;
+        od;
+        b := w[i];
+
+        i := 1;
+        while i < 4 do
+             w[i] := w[i]/b;
+             i := i+1;
+        od;
+
+        k := LogFFE(b,gen);
+        i := k mod r;
+        b := gen^i;
+
+        return b*w;
+    end;"""
+
+    gapOnKLines = libgap.eval(func)
+    GUAction = libgap.Action(GU,vertices,gapOnKLines)
+
+    e3 = [zero,zero,one]#other isotropic, with H(e3,e1) = 1 and so e3 ~ e1
+    e1pos = libgap.Position(vertices,e1)
+    e3pos = libgap.Position(vertices,e3)
     
-    N = r*(q**3+1)
-    print(N)
-    
-    edges = []
-    for i in range(N):
-        v = vertices[i]
-        vq = [x**q for x in v]
-        for j in range(i+1,N):
-            u = vertices[j]
-            Huv = u*J*vq# H(u,v)
-            if Huv != 0 and  Krep[Kset[Huv]] == oneK:
-                edges.append( (i,j) )
-                
+    #now we have that
+    #(e1pos, e11pos) is an edge
+    edges = libgap.Orbit(GUAction,[e1pos,e3pos], libgap.OnSets)
     G = Graph(edges, format="list_of_edges")
     return G
 
-def is_AB_graph(arr):
+def is_AB_graph(list arr):
     r"""
     Returns $n$ s.t. AB_graph(n) has intersection array $n$
     returns None otherwise
@@ -662,34 +673,19 @@ def is_AB_graph(arr):
     
     return n
 
-def test_AB_graph():
-    import time
-    
-    for m in range(100):
-        n = 2*m +1
-        nV = 2**(2*n)
-        if nV > 30000: break
-        start = time.time()
-        G = almost_bent_function_graph(n)
-        end = time.time()
-        if intersection_array_from_graph(G) != [2**n-1,2**n-2,2**(n-1)+1,1,2,2**(n-1)-1]:
-            print("{} failed".format(n))
-        else:
-            print("{} with {} vertices in {}".format(n,nV,end-start))
-
-    print("test done")
-
 def AB_graph(const int n):
     r"""
     Graph using almost bent function on GF(2)^n
     """
 
-    assert(n%2 ==1, "n should be odd; no AB known for n even")
+    if n%2 == 0:
+        raise ValueError("no knwon AB function for even n")
+    
     #if follows that (2,n) = 1
 
     Fq = GF(2**n)
 
-    f = { x : x**3 for x in Fq}
+    f = { x : x**3 for x in Fq }
         
     vectors = [x for x in Fq]
 
@@ -704,7 +700,7 @@ def AB_graph(const int n):
     G = Graph(edges,format="list_of_edges")
     return G
 
-def is_Preparata_graph(arr):
+def is_Preparata_graph(list arr):
 
     if len(arr) != 6: return
     q = (arr[0]+1) // 2
@@ -722,30 +718,14 @@ def is_Preparata_graph(arr):
 
     return (t,i)
 
-def test_Preparata():
-    import time
-    for t in range(1,100):
-        for i in range(2*t-2,-1,-1):
-            sig_check()
-            q = 2**(2*t-1)
-            Q = 2**(2*t-1-i)#size of Fq/A
-            nV = 2*q*Q
-            if nV > 10000:
-                break
-            start = time.time()
-            G = Preparata_graph(t,i)
-            end = time.time()
-            twoi1 = 2**(i+1) 
-            if intersection_array_from_graph(G) != [2*q-1,2*q-twoi1,1,1,twoi1,2*q-1]:
-                print("%d %d failed"%(t,i))
-            else:
-                print("({},{}) with {} vertices in {}".format(t,i,nV,end-start))
-    print("test done")
-
-def Preparata_graph(t,i):
+def Preparata_graph(const int t,const int i):
     r"""
     q= 2^(2t -1) |A| = 2^i
     """
+    
+    if i > 2*t-2 or i < 0:
+        raise ValueError("i should be between (inclusive) 0 and 2*t-2")
+    
     q = 2**(2*t-1)
     Fq= GF(q)
 
@@ -800,7 +780,7 @@ def Preparata_graph(t,i):
     G.name("Preparata graph on 2^(2%d-1)"%t)
     return G
 
-def is_Brouwer_Pasechnik_graph(arr):
+def is_Brouwer_Pasechnik_graph(list arr):
     if len(arr) != 6: return None
     q = arr[4]
     if not is_prime_power(q):
@@ -809,30 +789,7 @@ def is_Brouwer_Pasechnik_graph(arr):
         return None
     return q
 
-def test_Brouwer_Pasechink():
-    import time
-    for q in range(2,100):
-        if not is_prime_power(q): continue
-        if 2*(q**6) < 10000:
-            start = time.time()
-            G = Pasechnik_graph(q)
-            end = time.time()
-            if intersection_array_from_graph(G) != [q**3,q**3-1,q**3-q,q**3-q**2+1,1,q,q**2-1, q**3]:
-                print("{} failed Pasechnik".format(q))
-            else:
-                print("Pasechnik {} with {} vertices in {}".format(q,2*(q**6),end-start))
-        elif q**6 < 10000:
-            start = time.time()
-            G = Brouwer_Pasechnik_graph(q)
-            end = time.time()
-            if intersection_array_from_graph(G) != [q**3-1,q**3-q,q**3-q**2+1,1,q,q**2-1]:
-                print("{} failed Brouwer_Pasechnik".format(q))
-            else:
-                print("Brouwer_Pasechnik{} with {} vertices in {}".format(q,2*(q**6),end-start))
-        else: break
-    print("test done")
-
-def Brouwer_Pasechnik_graph(q):
+def Brouwer_Pasechnik_graph(const int q):
 
     Fq = GF(q)
 
@@ -865,7 +822,7 @@ def Brouwer_Pasechnik_graph(q):
     G.name("Brouwer-Pasechnik graph on GF(%d)"%q)
     return G
 
-def is_Pasechnik_graph(arr):
+def is_Pasechnik_graph(list arr):
     if len(arr) != 8: return None
     q = arr[5]
     if not is_prime_power(q):
@@ -874,205 +831,13 @@ def is_Pasechnik_graph(arr):
         return None
     return q
 
-def Pasechnik_graph(q):
+def Pasechnik_graph(const int q):
     H = Brouwer_Pasechnik_graph(q)
     G = extended_biparitite_double_graph(H)
     G.name("Pasechnik graph on D_4(%d)"%q)
     return G
-    
 
-def test_schemes():
-    import time
-    for q in range(2,10000):
-        if not is_prime_power(q): continue
-        for r in Integer(q-1).divisors()[1:]:#r=1 -> complete graph
-            if r*(q+1) > 10000: break
-            S = cyclotomic_scheme(q,r)
-            if ((q-1)//r)% 2 == 1 and is_prime_power(q,get_data=True)[0] != 2:
-                #cyclotomic scheme is not symmetric
-                if S.is_pseudocyclic():
-                    print("({},{}) not symmetric but pseudocyclic".format(q,r))
-                continue
-            start = time.time()
-            G = dist_reg_from_association_scheme(S)
-            end = time.time()
-            mu = (q-1)//r
-            if intersection_array_from_graph(G) != [q,q-1-mu,1,1,mu,q]:
-                print("({},{}) failed".format(q,r))
-            else:
-                print("({},{}) with {} vertices in {}".format(q,r,r*(q+1),end-start))
-    print("test done")
-            
-
-class AssociationScheme:
-
-    def _is_association_scheme(self):
-
-        #check matrix size
-        if self._matrix.ncols() != self._nX:
-            print("matrix has wrong size")
-        
-        #check R0
-        for i in range(self._nX):
-            if self._matrix[i][i] != 0:
-                print("identity is not R_0")
-            
-        
-        #check symmetries
-        for i in range(self._nX):
-            for j in range(i+1,self._nX):
-                if self._matrix[i][j] != self._matrix[j][i]:
-                    print("not symmetric")
-            
-
-        #check intersection numbers
-        self.compute_intersection_numbers()
-        r1 = self._r+1
-        for i in range(r1):
-            Ri = self.R(i)
-            for j in range(r1):
-                Rj = self.R(j)
-                for k in range(r1):
-                    Rk = self.R(k)
-                    pijk = self.p(i,j,k)
-                    for (x,y) in Rk:
-                        count = 0
-                        for z in self._X:
-                            if (x,z) in Ri and (z,y) in Rj:
-                                count += 1
-                        if pijk != count:
-                            print("failed p{}{}{} with pair ({},{})".format(i,j,k,x,y))
-                            return False
-        return True
-        
-        
-    def __init__(self, points, matrix, check=True):
-        self._X = list(points)
-        self._nX = len(self._X)
-        self._XtoInt = { x: i for i,x in enumerate(self._X)}
-        self._matrix = Matrix(matrix)
-
-        #compute number of classes
-        self._r = 0
-        for r in self._matrix:
-            for c in r:
-                if c > self._r: self._r = c
-
-        #empty intersection array
-        r1 = self._r+1
-        self._P = [ [ [None for k in range(r1) ] for j in range(r1)] for i in range(r1)]
-
-        if check:
-            if not self._is_association_scheme():
-                raise ValueError("input given is not an association scheme")
-            
-
-    def ground_set(self):
-        return self._X
-
-    def num_points(self):
-        return self._nX
-
-    def matrix(self):
-        return self._matrix
-
-    def num_classes(self):
-        return self._r
-
-    def has_relation(self,x,y,i):
-        return self.which_relation(x,y)  == i
-
-    def which_relation(self,x,y):
-        return self._matrix[self._XtoInt[x]][self._XtoInt[y]]
-    
-    def R(self,i):
-        Ri = set()
-        for i in range(self._nX):
-            for j in range(i+1,self._nX):
-                if self._matrix[i][j] == i:
-                    Ri.add((self._X[i],self._X[j]))
-                    Ri.add((self._X[j],self._X[i]))
-
-        return Ri
-
-    def p(self,i,j,k):
-        if self._P[i][j][k] is not None: return self._P[i][j][k]
-
-        r1 = self._r+1
-
-        self._P[i][j][k] = 0
-        for x in range(r1):
-            for y in range(r1):
-                if self._matrix[x][y] == k:
-                    break
-            else:
-                continue
-            break
-
-        assert(self._matrix[x][y] == k, "something wrong")
-
-        #now (x,y) in R_k
-        for z in range(r1):
-            if self._matrix[x][z] == i and self._matrix[z][y] == j:
-                self._P[i][j][k] += 1
-
-        return self._P[i][j][k]
-        
-
-    def compute_intersection_numbers(self):
-        if self._P is not None: return
-        r1 = self._r+1
-        for i in range(r1):
-            for j in range(r1):
-                for k in range(r1):
-                    self.p(i,j,k)
-
-    def is_pseudocyclic(self):
-        #we need p_{ii}^0 to be a constant f for 1<= i <= r
-        #we need sum_{i} p_{ii}^k = f-1 for 1 <= k <= r
-        r1 = self._r+1
-        f = self.p(1,1,0)
-        for i in range(2,r1):
-            if self.p(i,i,0) != f:
-                return False
-
-        for k in range(1,r1):
-            sumP = 0
-            for i in range(r1):
-                sumP += self.p(i,i,k)
-
-            if sumP != f-1:
-                return False
-        return True
-
-
-def cyclotomic_scheme(q,r,check=False):
-    #for (q-1)/r even or q power of 2, then the association scheme is symmetric
-    #and pseudocyclic
-
-    assert( (q-1)%r == 0, "q=rm+1 is not respected")
-
-    Fq = GF(q)
-    X = list(Fq)
-    XtoInt = { x: i for i,x in enumerate(X) }
-    
-    relations = [ [0 for i in range(q)] for j in range(q)] #qxq matrix
-
-    a = Fq.primitive_element()
-    ar = a**r
-    m = (q-1)//r
-    K = [ ar**i for i in range(m)]
-    for i in range(1,r+1):
-        ai=a**i
-        aiK = [ ai*x for x in K]
-        for x in X:
-            for z in aiK:
-                y = x+z
-                relations[XtoInt[x]][XtoInt[y]] = i
-
-    return AssociationScheme(X,relations,check)
-
-def is_from_association_scheme(arr):
+def is_from_association_scheme(list arr):
     r"""
     Return (n,r) is the graph built from an r-class association scheme of size n
     has interseciont array arr
@@ -1081,11 +846,20 @@ def is_from_association_scheme(arr):
     n = arr[0]
     mu = arr[4]
     r = (n-1) // mu
-    if arr != [n,(r-1)*mu,1,1,mu,n]:
+    if arr != [n,(r-1)*mu,1,1,mu,n]:#this is any r cover of K_{n+1}
         return None
     return (n,r)
 
-def graph_from_association_scheme(scheme, inf = "inf"):
+def graph_from_association_scheme(const int n, const int r):
+
+    S = pseudocyclic_association_scheme(n,r,check=False)
+    inf = "inf" if "inf" not in S.ground_set() else Integer(S.num_points())
+    while inf in S.ground_set(): #this makes sure that inf not in S
+        inf += 1
+        
+    return association_scheme_graph(S,inf)
+
+def association_scheme_graph(scheme, inf = "inf"):
     r"""
     we assume inf is not in the ground set of scheme
     """
@@ -1113,7 +887,7 @@ def graph_from_association_scheme(scheme, inf = "inf"):
     G = Graph(edges,format="list_of_edges")
     return G
 
-def is_from_GQ_spread(arr):
+def is_from_GQ_spread(list arr):
     r"""
     Returns (s,t) s.t. the graph obtained from a GQ of order (s,t) with a spread
     has the correct intersection array
@@ -1123,29 +897,17 @@ def is_from_GQ_spread(arr):
     s = arr[1] // (t-1)
     if arr != [s*t,s*(t-1),1,1,t-1,s*t]:
         return None
+    
+    if s == 1 and t == 1:#in this case we don't get a connected graph
+        return None
+    
     return (s,t)
 
-def test_GQ_graphs():
+def graph_from_GQ_spread(const int s,const int t):
+    (GQ,S) = generalised_quadrangle_with_spread(s,t,check=False)
+    return GQ_spread_graph(GQ,S)
 
-    import time
-    
-    for q in [2,3,4,5,7,8,9]:
-        start = time.time()
-        (GQ,O) = generalised_quadrangle_hermitean(q)
-        end = time.time()
-        print("constructed GQ H(3,{}^2)with {} points in {}".format(q,GQ.num_points(),end-start))
-        
-        start = time.time()
-        G = dist_reg_from_GQ_ovoid(GQ,O)
-        end = time.time()
-        if intersection_array_from_graph(G) != [q**3,q*((q**2)-1),1,1,(q**2)-1,q**3]:
-            print("!!!!!!!!!graph {} failed!!!!!!!!!!!".format(q))
-        else:
-            print("construced graph with {} edges in {}".format(G.size(),end-start))
-
-    print("done test")
-
-def graph_from_GQ_spread(GQ, S):
+def GQ_spread_graph(GQ, S):
     r"""
     point graph of the generalised quadrangle without its spred
     """
@@ -1162,131 +924,7 @@ def graph_from_GQ_spread(GQ, S):
     G = Graph(edges, format="list_of_edges")
     return G
 
-def graph_from_GQ_ovoid(GQ,ovoid):
-    r"""
-    Given a gen quadrangle with an ovoid, we compute the graph
-    that we would get from its dual with a spread
-    """
-
-    #vertices are lines of GQ
-    #2 lines are adjecent if their instersection is non-empty and is not in ovoid
-    #so we could remove ovoid from all lines and then only worry about non-emptyness
-    setOvoid = set(ovoid)
-
-    newBlocks = [ set(line).difference(setOvoid) for line in GQ.blocks() ]
-    
-    edges = []
-    for i,line in enumerate(newBlocks):
-        sline = set(line)
-        for j in range(i+1,GQ.num_blocks()):
-            line2 = newBlocks[j]
-            if sline.intersection(line2):
-                edges.append( (i,j) )
-
-    G = Graph(edges,format="list_of_edges")
-    return G
-
-
-def generalised_quadrangle_hermitean(q):
-    r"""
-    Another way of making H(3,q^2)
-    """
-
-    GU = libgap.GU(4,q)
-    H = libgap.InvariantSesquilinearForm(GU)["matrix"]
-    Fq = libgap.GF(q*q)
-    zero = libgap.Zero(Fq)
-    one = libgap.One(Fq)
-    V = libgap.FullRowSpace(Fq,4)
-
-    e1 = [one,zero,zero,zero] #isotropic point
-    assert( e1*H*e1 == zero, "e1 not isotropic")
-    print("found iso point")
-
-    points = list(libgap.Orbit(GU,e1,libgap.OnLines)) #all isotropic points
-    pointInt = { x:(i+1) for i,x in enumerate(points) } #+1 because GAP starts at 1
-    #points is the hermitean variety
-
-    GUp = libgap.Action(GU, points, libgap.OnLines)#GU as permutation group of points
-
-    e2 = [zero,one,zero,zero]
-    #we have totally isotropic line
-    line = V.Subspace([e1,e2])
-    lineAsPoints = [libgap.Elements(libgap.Basis(b))[0] for b in libgap.Elements(line.Subspaces(1)) ]
-    line = libgap.Set([ pointInt[p] for p in lineAsPoints ])
-    print("found iso line")
-
-    lines = libgap.Orbit(GUp, line, libgap.OnSets)#all isotropic lines
-    #print(len(lines))
-
-    #to find ovoid, we embed H(3,q^2) in H(4,q^2)
-    #then embedding is (a,b,c,d) -> (a,b,0,c,d) [so we preserve isotropicity]
-    #then find a point in the latter and not in the former
-    #this point will be collinear in H(3,q^2) to all (and only) the points in a ovoid
-    W = libgap.FullRowSpace(Fq,5)
-    J = [ [0,0,0,0,1],[0,0,0,1,0],[0,0,1,0,0],[0,1,0,0,0],[1,0,0,0,0]]
-    J = libgap(J)
-    if q%2 == 1:
-        (p,k) = is_prime_power(q,get_data=True)
-        a = (p-1)// 2
-        aGap = zero
-        for i in range(a):
-            aGap += one
-        p = [zero,one,one,aGap,zero]
-    else:
-        a = libgap.Z(q*q)**(q-1)
-        p = [zero,one,a+one,a,zero]
-        
-    print("building ovoid")
-    #now p is a point of H(4,q^2)
-
-    #p' is collinear to p iff p'Jp^q = 0
-    #note that p'Jp^q = bx^q + c where p' =(a,b,0,c,d) and p=(0,1,1,x,0)
-    #hece we have points (0,0,0,1); (0,1,c,a) for any a iff c^q+c = 0 (c = -x^q)
-    #and (1,b,c,x) for any x and any b (c= -bx^q) iff it is an iso point
-    #so we need only q^2 (for last case) +1 (for 2nd case) checks 
-    ovoid = []
-    xq = p[3]**q
-    for p2 in points:
-        if p2[1]*xq+p2[2] == zero: #p collinear to newP2
-            ovoid.append(libgap(pointInt[p2]))
-
-    from sage.combinat.designs.incidence_structures import IncidenceStructure
-    D = IncidenceStructure(lines)
-    return (D,ovoid)
-
-def is_ovoid(D,ovoid):
-    setOvoid = set(ovoid)
-    for line in D.blocks():
-        l = [Integer(x) for x in line]
-        if len(setOvoid.intersection(l)) != 1:
-            print(line)
-            return False
-
-    return True
-
-
-def test_symplectic():
-    import time
-    
-    for q in [16,17,19,23,25,27]:
-        for r in Integer(q).divisors()[1:]:#this removes the case r = 1
-            for n in range(2,20,2):
-                arr = [q**n-1,(r-1)*q**n/r,1,1,q**n/r, q**n-1]
-                nV = number_of_vertices_from_intersection_array(arr)
-                if nV < 10000:
-                    start = time.time()
-                    G = symplectic_cover_of_complete(q,n,r)
-                    end = time.time()
-                    if intersection_array_from_graph(G) != arr:
-                        print("{} {} {} failed".format(q,n,r))
-                    else:
-                        print("{} {} {} with {} vertices done in {}".format(q,n,r,nV,end-start))
-                else:
-                    break
-    print("test done")
-
-def is_generalised_symplectic_cover(arr):
+def is_generalised_symplectic_cover(list arr):
     if len(arr) != 6: return None
     qn = arr[0]+1
     r = qn // arr[4]
@@ -1319,11 +957,16 @@ def is_generalised_symplectic_cover(arr):
 def generalised_symplectic_cover(const int q, const int n, r = None):
     r"""
     (q,n,r) build a dist reg graph. If r == q, then we have a antipodal q cover of K_q^n
+    for r == 1 we get complete graph ?
+    r is index of A in F_q +
     """
     if r == None:
         r = q
-    assert(n%2 == 0, "n must be even")
-    assert(q%r == 0 and r != 1, "r must be a factor of q and not 1")
+
+    if n%2 == 1:
+        raise ValueError("n must be even")
+    if q%r != 0:
+        raise ValueError("r must be a factor of q")
 
     def ei(i,m):
         v = [0]*m
@@ -1338,7 +981,7 @@ def generalised_symplectic_cover(const int q, const int n, r = None):
         #so we make Fq a vectorspace and A is a subspace
         (Fqvec,fromVec,toVec) = Fq.vector_space(map=True)
         (p,k) = is_prime_power(r,get_data=True)
-        Adim = Fqvec.dimension() -k
+        Adim = Fqvec.dimension() -k #|A| = q / r 
         A = Fqvec.span([ei(i,Fqvec.dimension()) for i in range(Adim)])
         A = [ fromVec(x) for x in A ]
 
@@ -1397,23 +1040,26 @@ def generalised_symplectic_cover(const int q, const int n, r = None):
     G.name("antipodal %d cover of K_{%d^%d}"%(q,q,n))#to be changed
     return G
 
-def is_from_BIBD(arr):
+def is_from_BIBD(list arr):
     if len(arr) != 6: return None
     k = arr[0]
     l = arr[4]
     v = (k*(k-1))//l +1
-
+    
+    if k <= 2: return None #trivial cases
+    if v == k: return None #diameter 2
+    
     if arr != [k, k-1, k-l, 1,l,k]:
         return None
 
     return (v,k)
 
-def graph_from_BIBD(v,k):
-    lmbd = (k*(k-1))//(v-1) #the division should not trucate
+def graph_from_BIBD(const int v,const int k):
+    lmbd = (k*(k-1))//(v-1) if v!= 1 else 1#the division should not truncate
     D = Sage_Designs.balanced_incomplete_block_design(v,k,lmbd=lmbd)
     return D.incidence_graph()
 
-def is_from_Denniston_arc(arr):
+def is_from_Denniston_arc(list arr):
     if len(arr) != 8: return None
     n = arr[3]
     (p,k) = is_prime_power(n,get_data=True)
@@ -1423,7 +1069,7 @@ def is_from_Denniston_arc(arr):
         return None
     return n
 
-def graph_from_Denniston_arc(n):
+def graph_from_Denniston_arc(const int n):
     r"""
     build dist reg graph from p387
     """
@@ -1435,7 +1081,15 @@ def graph_from_Denniston_arc(n):
     Fq = GF(q)
     Fn = GF(n)
     elemsFq = [ x for x in Fq]
-    assert(elemsFq[0] == 0, "issue with 0 in Fq")
+
+    #ensure elemsFq[0] == 0
+    if not elemsFq[0].is_zero():
+        for i,x in enumerate(elemsFq):
+            if x.is_zero():
+                y = elemsFq[0]
+                elemsFq[0] = x
+                elemsFq[i] = y
+                break
 
     #find irreducible quadratic
     candidates = set(Fq)
@@ -1444,7 +1098,7 @@ def graph_from_Denniston_arc(n):
         candidates = candidates.difference({a})
 
     irrCoef = candidates.pop()
-    print("irr quadric: x^2+{}xy+y^2".format(irrCoef))
+    #print("irr quadric: x^2+{}xy+y^2".format(irrCoef))
     def Q(x,y):
         return x*x+irrCoef*x*y+y*y
 
@@ -1470,7 +1124,7 @@ def graph_from_Denniston_arc(n):
     #now we have a list of all lines of the complement
     edges = []
     for b in lines:
-        bs = Set(b)
+        bs = frozenset(b)
         for p in b:
             edges.append( (p,bs) )
 
@@ -1478,18 +1132,18 @@ def graph_from_Denniston_arc(n):
     G.name("Incidence graph of the complement of a complete %d-arc in PG(2,%d)"%(n,q))
     return G
 
-def is_unitary_nonisotropic_graph(arr):
+def is_unitary_nonisotropic_graph(list arr):
     if len(arr) != 6: return None
     q = arr[2]-1
     if not is_prime_power(q):
         return None
     if q <= 2: return None
 
-    if arr != [q*q-q,q*q-q-2,q+1,1,1,q*q-q]:
+    if arr != [q*q-q,q*q-q-2,q+1,1,1,q*q-2*q]:
         return None
     return q
 
-def unitary_nonisotropic_graph(q):
+def unitary_nonisotropic_graph(const int q):
     r"""
     see page 383 on BCN
     """
@@ -1528,7 +1182,7 @@ def unitary_nonisotropic_graph(q):
     G.name("Unitary nonisotropic graph on (F_%d)^3"%r)
     return G
 
-def is_Taylor_graph(arr):
+def is_Taylor_graph(list arr):
     r"""
     returns (n,l) s.t. the regular two-graph over $n$ points (i.e. the two-graph which is a 2-design(n,3,l) )
     taylor_twograph(q) has q^3+1 vertices and l = (q-1)(q^2+1)/2  [for reason look at paper referenced in sage doc about taylor_twograph]
@@ -1546,7 +1200,12 @@ def is_Taylor_graph(arr):
     #hence any 2 points are in l blocks
     return (n,l)
 
-def graph_from_two_design( D ):
+def Taylor_graph(const int n,const int l):
+    D = two_graph(n,l,regular=True,check=False)
+    G = graph_from_two_graph(D)
+    return G
+
+def graph_from_two_graph( D ):
     r"""
     Given a two graph (block design) it builds a graph associated with it.
     """
@@ -1591,22 +1250,23 @@ def graph_from_two_design( D ):
     G = Graph(edges,format="list_of_edges")
     return G
 
-def is_from_TD(arr):
+def is_from_TD(list arr):
     if len(arr) != 8: return None
 
     u = arr[5]
     m = arr[0]//u
 
+    if m == 1: return None #graph is srg
     if arr!=[m*u,m*u-1,(m-1)*u,1,1,u,m*u-1,m*u]:
         return None
     return (m,u)
 
-def graph_from_TD(m,u):
+def graph_from_TD(const int m, const int u):
    SN = Sage_Designs.symmetric_net(m,u)
    return SN.incidence_graph()
 
 
-def generalised_dodecagon(s,t):
+def generalised_dodecagon(const int s, const int t):
     cdef int q = 0
     cdef int orderType = 0
 
@@ -1625,7 +1285,7 @@ def generalised_dodecagon(s,t):
         #incidence graph of hexagon (q,q)
         
         H = generalised_hexagon(q,q)
-        lines = extract_lines(H,q,q)
+        lines = extract_lines(H)
         points = list(H.vertices())
 
         edges = []
@@ -1641,13 +1301,11 @@ def generalised_dodecagon(s,t):
     else: #orderType == 1
         #dual
         H = generalised_dodecagon(t,s)
-        G = line_graph_generalised_polygon(H,t,s)
+        G = line_graph_generalised_polygon(H)
         G.name("Generalised dodecagon of order (%s,%d)"%(s,t))
         return G
-    
-        
 
-def generalised_octagon(s,t):
+def generalised_octagon(const int s, const int t):
     cdef int q = 0
     cdef int orderType = 0
     if s == 1:# (1,q)
@@ -1657,6 +1315,9 @@ def generalised_octagon(s,t):
         orderType = 1
     elif s**2 ==  t:# (q,q^2)
         q = s
+        (p,k) = is_prime_power(q,get_data=True)
+        if p != 2 or k%2 != 1:
+            raise ValueError("generalised octagon (q,q^2) only for q odd powers of 2")
         orderType = 2
     elif t**2 == s: #(q^2,q)
         q = t
@@ -1670,7 +1331,7 @@ def generalised_octagon(s,t):
     if orderType == 0:
         H = strongly_regular_graph((q+1)*(q*q+1),q*(q+1),q-1,q+1)
         # above is pointgraph of generalised quadrangle (q,q)
-        lines = extract_lines(H,q,q)
+        lines = extract_lines(H)
         points = list(H.vertices())
         #points and lines make the quadrangle
 
@@ -1687,7 +1348,7 @@ def generalised_octagon(s,t):
     elif orderType == 1:
         #dual
         H = generalised_octagon(t,s)
-        G = line_graph_generalised_polygon(H,t,s)
+        G = line_graph_generalised_polygon(H)
         G.name("Generalised octagon of order(%d,%d)"%(s,t))
         return G
     else:
@@ -1697,12 +1358,10 @@ def generalised_octagon(s,t):
             G.name("Generalised octagon of order (2,4)")
             return G
         else:
-            pass
+            raise NotImplementedError("graph would be too big")
     pass
-         
     
-    
-def extract_lines( G, s, t):
+def extract_lines( G ):
     r"""given the point graph of a generalised 2d-gon of order (s,t) we
     extract the lines from G and return it
 
@@ -1721,13 +1380,11 @@ def extract_lines( G, s, t):
               S^bottom = intersection of x^bottom for all x in S
     """
 
-    numLines = (G.order() * (t+1)) / (s+1)
-
     lines = []
-    edges = set(G.edges(sort=False))
-    
+    edges = set(G.edges(labels=False,sort=False))
+
     while edges :
-        (x,y,w) = edges.pop()
+        (x,y) = edges.pop()
 
         #compute line
         bottomX = set(G.neighbors(x,closed=True))
@@ -1741,13 +1398,13 @@ def extract_lines( G, s, t):
             bottom2 = bottom2.intersection(s)
 
         #now bottom2 is a line
-        lines.append(tuple(bottom2))
+        lines.append(tuple(bottom2))#we need tuple or GAP will complain
         
         #remove pointless edges
         for u in bottom2:
             for v in bottom2:
                 try :
-                    edges.remove( (u,v,None) )
+                    edges.remove( (u,v) )
                 except KeyError:
                     pass #ignore this
                 
@@ -1755,27 +1412,25 @@ def extract_lines( G, s, t):
 
     return lines
 
+def line_graph_generalised_polygon(H):
+    lines = extract_lines(H)
 
+    vToLines = { v : [] for v in H.vertices(sort=False) }
+    for l in lines:
+        for p in l:
+            vToLines[p].append(l)
 
-def line_graph_generalised_polygon(H, s,t):
-    r"""
-    Given the point graph H of a generalised n-gon of order (s,t)
-    it returns the point graph of a generalised n-gon of order (t,s)
-    """
-    lines = extract_lines(H,s,t)
+    k = len(vToLines[lines[0][0]])
 
     edges = []
-    n = len(lines)
-    for i in range(n):
-        l1 = lines[i]
-        for j in range(i+1,n):
-            l2 = lines[j]
-            if set(l1).intersection(l2) :
-                edges.append( (l1,l2) )
-            
-    G = Graph(edges, format='list_of_edges')
-    return G
+    for v in vToLines:
+        lines = vToLines[v]
+        for i,l in enumerate(lines):
+            for j in range(i+1,k):
+                edges.append( (l,lines[j]) )
     
+    G = Graph(edges,format="list_of_edges")
+    return G
 
 def generalised_hexagon( const int s, const int t):
     r"""
@@ -1819,12 +1474,12 @@ def generalised_hexagon( const int s, const int t):
 
         G = Graph(edges, format='list_of_edges')
         G.name("Generalised hexagon of order (1,%d)"%q)
-        return G#G.edges() gives problems
-        
+        return G
+    
     elif orderType == 1:
         # "dual" graph 
         H = generalised_hexagon(t,s)
-        G = line_graph_generalised_polygon(H,t,s)
+        G = line_graph_generalised_polygon(H)
         G.name("Generalised hexagon of order(%d,%d)"%(s,t))
         return G
         
@@ -1862,7 +1517,7 @@ def generalised_hexagon( const int s, const int t):
     pass
 
 
-def graph_from_permutation_group( group, order ):
+def graph_from_permutation_group( group, const int order ):
     r"""
     construct graph whose automorphism group is "group"
     we ensure the graph has order "order"
@@ -1885,108 +1540,7 @@ def graph_from_permutation_group( group, order ):
 
     return G
 
-def test_Kasami_graphs():
-    r"""
-    build all kasami graphs of type i for v < 10000
-    """
-
-    from sage.arith.misc import gcd
-    
-    for i in range(1,20):
-        q = 2**i
-        for j in range(1,20):
-            s = q**(2*j+1)
-            for m in range(j+1):
-                if gcd(m,2*j+1) != 1: continue
-
-                t = q**m
-
-                extended_v = 2*q**(4*j+2)
-                v = q**(4*j+2)
-
-                if extended_v < 10000:
-                    G = extended_Kasami_graph(s,t)
-                    if intersection_array_from_graph(G) != [q**(2*j+1), q**(2*j+1)-1, q**(2*j+1)-q, q**(2*j)*(q-1)+1, 1, q, q**(2*j)-1, q**(2*j+1)]:
-                        print("extended code failed values (q,j,m) (%d,%d,%d)"%(q,j,m))
-                    else:
-                        print("extended (q,j,m) (%d,%d,%d) (%d vertices) passed"%(q,j,m,extended_v))
-
-                if v < 10000:
-                    G = Kasami_graph(s,t)
-                    if intersection_array_from_graph(G) !=  [q**(2*j+1)-1, q**(2*j+1)-q, q**(2*j)*(q-1)+1, 1, q, q**(2*j)-1]:
-                        print("failed values (q,j,m) (%d,%d,%d)"%(q,j,m))
-                    else:
-                        print("(q,j,m) (%d,%d,%d) (%d vertices) passed"%(q,j,m,v))
-
-    print("test completed")
-
-def extended_Kasami_code(s,t):
-    #check s,t are good
-    
-    F2 = GF(2)
-    V = VectorSpace(F2, s)
-    elemsFs = [x for x in GF(s)]
-    FsToInt = { x : i for i,x in enumerate(elemsFs)}
-    elemsFsT = [x**(t+1) for x in elemsFs]
-    FsTToInt = { x: i for i,x in enumerate(elemsFsT)}
-
-    e1 = [0]*s
-    e1[0] = 1
-    e1 = vector(F2,e1,immutable=True)
-    assert(e1 in V, "e1 not in V!")
-
-    W1_basis = []
-    for i in range(s-1):
-        v = [0]*s
-        v[i] = 1
-        v[s-1] = 1
-        W1_basis.append(v)
-    W1 = V.span(W1_basis) #W satisfies \sum v[i] = 0
-
-    W2_basis = set([e1])#not really a basis...
-    for i in range(1,s):#avoid x = 0
-        x = elemsFs[i]
-        for j in range(i+1,s):
-            y = elemsFs[j]
-            v = [0]*s
-            v[i] = 1
-            v[j] = 1
-            v[ FsToInt[(x+y)] ] = 1
-            v = vector(F2,v,immutable=True)
-            W2_basis.add(v)
-    W2 = V.span(W2_basis) #U satisfies \sum v[i]elemsFs[i] = 0
-
-
-    W3_basis = set([e1]) #again not really a basis
-    for i in range(1,s): #avoid x = 0^(t+1) = 0
-        x = elemsFsT[i]
-        for j in range(i+1,s):
-            y = elemsFsT[j]
-            v = [0]*s
-            v[i] = 1
-            v[j] = 1
-            v[ FsTToInt[(x+y)] ] = 1
-            v=vector(F2,v,immutable=True)
-            W3_basis.add(v)
-    W3 = V.span(W3_basis)
-
-    W = W2.intersection(W3)
-    codebook = W.intersection(W1)
-    
-    return codebook
-
-def Kasami_code(s,t):
-    r"""
-    take extended Kasami and truncate it
-    """
-
-    C = extended_Kasami_code(s,t)
-    codebook = [v[1:] for v in C.basis()]
-    V = VectorSpace(GF(2),s-1)
-    
-    return V.span(codebook)
-
-def is_from_Kasami_code(arr):
+def is_from_Kasami_code(list arr):
     if len(arr) != 6: return None
     q = arr[4]
     (p,k) = is_prime_power(q,get_data=True)
@@ -2012,13 +1566,13 @@ def is_from_Kasami_code(arr):
 
     return None
 
-def Kasami_graph(s,t):
+def Kasami_graph(const int s, const int t):
     K = Kasami_code(s,t)
     G = coset_graph(2,K.basis(),n=s-1)
     G.name("Coset graph of Kasami code (%d,%d)"%(s,t))
     return G
 
-def is_from_extended_Kasami_code(arr):
+def is_from_extended_Kasami_code(list arr):
     if len(arr) != 8: return None
     q = arr[5]
     (p,k) = is_prime_power(q,get_data=True)
@@ -2042,7 +1596,7 @@ def is_from_extended_Kasami_code(arr):
 
     return None
 
-def extended_Kasami_graph(s,t):
+def extended_Kasami_graph(const int s, const int t):
     K = extended_Kasami_code(s,t)
     G = coset_graph(2,K.basis(), n=s)
     G.name("Coset graph of extended Kasami code (%d,%d)"%(s,t))
@@ -2195,7 +1749,8 @@ def is_classical_parameters_graph( array ):
     # b_i = arr[i]; c_i = arr[d - 1 + i]
     if len(array) % 2 != 0 : return None
     
-    d = len(array) / 2
+    d = len(array) // 2
+    if d < 3: return None
 
     def c_( const int i ) :
         if i == 0: return 0
@@ -2227,7 +1782,10 @@ def is_classical_parameters_graph( array ):
         
     if case1:
         # b = (a_2*c_3 - c_2*a_3)/(a_1*c_3 - a_3)
-        b = ( a_(2) * c_(3) - c_(2) * a_(3)) / ( a_(1) * c_(3) - a_(3) )
+        try :
+            b = ( a_(2) * c_(3) - c_(2) * a_(3)) / ( a_(1) * c_(3) - a_(3) )
+        except ZeroDivisionError:
+            return None
     else :
         # b \in { c_2 - 1, -a_1 - 1}
         # try b = c_2 - 1
@@ -2354,7 +1912,7 @@ def is_near_polygon(list arr):
         return None
     
     #if we get here we passed the test
-    return l
+    return (l,arr)
 
 def intersection_array_2d_gon(d, s, t):
     b = [0]*d
@@ -2370,8 +1928,6 @@ def intersection_array_2d_gon(d, s, t):
         b[i] = b[0] - s
 
     return b + c
-
-
 
 ################################################################################
 # START GRAPH RELATED FUNCTIONS
@@ -2456,10 +2012,12 @@ def fold_graph( G ):
     # since G_d is a union of disjoint cliques all nodes in a set are a maximal clique
     # atm we have a sillier implementation
     cdef list cliques = []
-    cdef list vertices = G.vertices()
-    for v in vertices:
+    cdef set vertices = set(G.vertices(sort=False))
+    while vertices:
+        v = vertices.pop()
         clique = frozenset(G_d.neighbors(v, closed=True))
         cliques.append(clique)
+        vertices = vertices.difference(clique)
 
     cdef int n = len(cliques)
     cdef list edges = []
@@ -2484,7 +2042,8 @@ def bipartite_double_graph(G):
     #(0,v) and (1,v)
 
     cdef list edges = []
-    for (u,v,l) in G.edges():
+    for (u,v) in G.edges(sort=False,labels=False):
+        sig_check()
         u1 = (0,u)
         u2 = (1,u)
         v1 = (0,v)
@@ -2504,6 +2063,7 @@ def extended_biparitite_double_graph(G):
     """
     H = bipartite_double_graph(G)
     for u in G.vertices():
+        sig_check()
         u1 = (0,u)
         u2 = (1,u)
 
@@ -2558,10 +2118,14 @@ def graph_with_classical_parameters( const int d,
     """
     
     def is_power_of( const int num, const int base ):
+        if base == 1:
+            if num == base: return 0
+            else: return -1
+        if base == 0: return -1
         # this functions checks if num = base^k for some k in N and return k
         # if no such k exists, then -1 is returned
-        cdef int baseToK = base
-        cdef int k = 1
+        cdef int baseToK = 1
+        cdef int k = 0
         #invariant : baseToK = base^k
         while ( baseToK < num ):
             baseToK *= base
@@ -2574,6 +2138,7 @@ def graph_with_classical_parameters( const int d,
     # end is_power_of
 
     def q_of(const int num, const int exp ):
+        if exp == 0: return -1
         # return prime power q s.t. num = q^exp
         # otherwise return -1
         (b,k) = is_prime_power(num, True)
@@ -2592,6 +2157,8 @@ def graph_with_classical_parameters( const int d,
     
     alpha = Rational(input_alpha)
     beta = Rational(input_beta)
+    if alpha.is_integer(): alpha = int(alpha)
+    if beta.is_integer(): beta = int(beta)
     
     if b == 1 :
         if alpha == 1 and beta >= d:#since beta+d = n >= 2*d
@@ -2627,7 +2194,7 @@ def graph_with_classical_parameters( const int d,
         elif d == 3 and alpha == -3 and beta == 7:
             return doubly_truncated_binary_Golay_code_graph()
     
-    elif b < 0 and is_prime_power(b):
+    elif b < 0 and is_prime_power(-b):
         if alpha +1 == (1 + b*b)/(1 + b) and beta +1 == q_binomial(d+1,1,b):
             # U(2d,r)
             return GraphGenerators.UnitaryDualPolarGraph(2*d,-b)
@@ -2647,8 +2214,8 @@ def graph_with_classical_parameters( const int d,
         if alpha == b and is_power_of( (beta +1)*(b-1)+1, b ) >= d+1:
             # we checked that beta + 1 = (b^(n-d+1) - 1)/(b - 1) for n >= 2d
             # Grassmann graph
-            n = is_power_of( (beta+1)*(b-1)+2,b)+d-1
-            return Grassmann(b,n,d)
+            n = is_power_of( (beta+1)*(b-1)+1,b)+d-1
+            return Grassmann_graph(b,n,d)
         elif alpha == 0 and is_power_of( beta, b ) in {0, 0.5, 1, 1.5, 2}:
             # dual polar graphs
             e = is_power_of( beta, b )
@@ -2727,7 +2294,7 @@ def pseudo_partition_graph(m,a):
 
     raise ValueError("no known graph exists")
 
-def near_polygon_graph(list arr):
+def near_polygon_graph(l, arr):
     r"""
     Returns a dist reg graph which is a near polygon with the given intersection array
 
@@ -2753,7 +2320,6 @@ def near_polygon_graph(list arr):
         return (s,t)
 
     d = len(arr)
-    l = is_near_polygon(arr)
     if l is None:
         raise ValueError("no near polygon known with such intersection array")
 
@@ -2821,7 +2387,7 @@ def near_polygon_graph(list arr):
                 raise ValueError("no near polygon known with such intersection array")
         #note that the diameter of the double grassman graph (q',n',e')
         #is n'
-        return double_Grassmann(q,d,e)
+        return doubled_Grassmann_graph(q,d,e)
 
     if k == n and l == 0:
         #folded cube
@@ -2844,7 +2410,7 @@ def near_polygon_graph(list arr):
     q = arr[d+1]-1 #c2 = q+1
     if k == (l+1)*(q**d -1)//(q-1) and n == 2*d:
         #dual polar graph
-        t = is_classical_parameter_graph(arr)
+        t = is_classical_parameters_graph(arr)
         if t is None:
             raise ValueError("no near polygon known with such intersection array")
         return graph_with_classical_parameters(*t)
@@ -2869,20 +2435,21 @@ _infinite_families = [
     (is_classical_parameters_graph, graph_with_classical_parameters),
     (is_pseudo_partition_graph, pseudo_partition_graph),
     (is_near_polygon, near_polygon_graph),
+    (is_hermitean_cover, hermitean_cover),
     (is_AB_graph, AB_graph),
-    (is_Preparata_graph,Preparata_graph),
-    (is_Brouwer_Pasechnik_graph,Brouwer_Pasechnik_graph),
-    (is_Pasechnik_graph,Pasechnik_graph),
-    (is_from_association_scheme,graph_from_association_scheme),#needs func to create association scheme
-    (is_from_GQ_spread,graph_from_GQ_spread),#needs func to create GQ
-    (is_generalised_symplectic_cover,generalised_symplectic_cover),
-    (is_from_BIBD,graph_from_BIBD),
-    (is_from_Denniston_arc,graph_from_Denniston_arc),
-    (is_unitary_nonisotropic_graph,unitary_nonisotropic_graph),
-    (is_Taylor_graph,graph_from_two_design), #needs func to crete regular two-graph
-    (is_from_TD,graph_from_TD),
-    (is_from_Kasami_code,Kasami_graph),
-    (is_from_extended_Kasami_code,extended_Kasami_graph)
+    (is_Preparata_graph, Preparata_graph),
+    (is_Brouwer_Pasechnik_graph, Brouwer_Pasechnik_graph),
+    (is_Pasechnik_graph, Pasechnik_graph),
+    (is_from_association_scheme, graph_from_association_scheme),
+    (is_from_GQ_spread, graph_from_GQ_spread),
+    (is_generalised_symplectic_cover, generalised_symplectic_cover),
+    (is_from_BIBD, graph_from_BIBD),
+    (is_from_Denniston_arc, graph_from_Denniston_arc),
+    (is_unitary_nonisotropic_graph, unitary_nonisotropic_graph),
+    (is_Taylor_graph,Taylor_graph),
+    (is_from_TD, graph_from_TD),
+    (is_from_Kasami_code, Kasami_graph),
+    (is_from_extended_Kasami_code, extended_Kasami_graph)
 ]
 
 #given functions f,g
@@ -2894,32 +2461,37 @@ def _compose(f,g):
 #dictionary intersection_array (as tuple)  -> construction
 #of spordaic distance-regular graphs
 _sporadic_graph_database = {
-	(3, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 3) : GraphGenerators.FosterGraph,
-	(7, 6, 4, 4, 4, 1, 1, 1, 1, 1, 1, 2, 4, 4, 6, 7) : IvanovIvanovFaradjev_graph,
-	(3, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 3) : GraphGenerators.BiggsSmithGraph,
-	(22, 21, 20, 16, 6, 2, 1, 1, 2, 6, 16, 20, 21, 22) : _compose(bipartite_double_graph, truncated_binary_Golay_code_graph),
-	(23, 22, 21, 20, 3, 2, 1, 1, 2, 3, 20, 21, 22, 23) : _compose(bipartite_double_graph, binary_Golay_code_graph),
-	(21, 20, 16, 6, 2, 1, 1, 2, 6, 16, 20, 21) : shortened_00_11_binary_Golay_code_graph,
-	(21, 20, 16, 9, 2, 1, 1, 2, 3, 16, 20, 21) : shortened_000_111_extended_binary_Golay_code_graph,
-	(22, 21, 20, 3, 2, 1, 1, 2, 3, 20, 21, 22) : shortened_binary_Golay_code_graph,
-	(3, 2, 1, 1, 1, 1, 1, 1, 2, 3) : GraphGenerators.DodecahedralGraph,
-	(22, 20, 18, 2, 1, 1, 2, 9, 20, 22) : shortened_extended_ternary_Golay_code_graph,
-	(7, 6, 6, 1, 1, 1, 1, 6, 6, 7) : _compose(bipartite_double_graph, GraphGenerators.HoffmanSingletonGraph),
-	(10, 9, 8, 2, 1, 1, 2, 8, 9, 10) : _compose(bipartite_double_graph, GraphGenerators.SimsGewirtzGraph),
-	(16, 15, 12, 4, 1, 1, 4, 12, 15, 16) : lambda : bipartite_double_graph(GraphGenerators.strongly_regular_graph(77,16,0)),
-	(22, 21, 16, 6, 1, 1, 6, 16, 21, 22) : _compose(bipartite_double_graph, GraphGenerators.HigmanSimsGraph),
-	(3, 2, 2, 1, 1, 1, 1, 2) : Coxeter_graph,
-	(6, 5, 5, 4, 1, 1, 2, 6) : LintSchrijver_graph,
-	(7, 6, 4, 4, 1, 1, 1, 6) : doubly_truncated_Witt_graph,
-	(9, 8, 6, 3, 1, 1, 3, 8) : distance_3_doubly_truncated_Golay_code_graph,
-	(10, 8, 8, 2, 1, 1, 4, 5) : J2_graph,
-	(11, 10, 6, 1, 1, 1, 5, 11) : GraphGenerators.LivingstoneGraph,
-	(5, 4, 1, 1, 1, 1, 4, 5) : GraphGenerators.WellsGraph,
-	(6, 4, 2, 1, 1, 1, 4, 6) : Foster_graph_3S6,
-	(10, 6, 4, 1, 1, 2, 6, 10) : ConwaySmith_for_3S7,
-	(20, 18, 4, 1, 1, 2, 18, 20) : shortened_ternary_Golay_code_graph,
-	(45, 32, 12, 1, 1, 6, 32, 45) : locally_GQ42_graph,
-	(117, 80, 24, 1, 1, 12, 80, 117) : graph_3O73
+    (3, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 3) : GraphGenerators.FosterGraph,
+    (7, 6, 4, 4, 4, 1, 1, 1, 1, 1, 1, 2, 4, 4, 6, 7) : IvanovIvanovFaradjev_graph,
+    (3, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 3) : GraphGenerators.BiggsSmithGraph,
+    (22, 21, 20, 16, 6, 2, 1, 1, 2, 6, 16, 20, 21, 22) : _compose(bipartite_double_graph, truncated_binary_Golay_code_graph),
+    (23, 22, 21, 20, 3, 2, 1, 1, 2, 3, 20, 21, 22, 23) : _compose(bipartite_double_graph, binary_Golay_code_graph),
+    (21, 20, 16, 6, 2, 1, 1, 2, 6, 16, 20, 21) : shortened_00_11_binary_Golay_code_graph,
+    (21, 20, 16, 9, 2, 1, 1, 2, 3, 16, 20, 21) : shortened_000_111_extended_binary_Golay_code_graph,
+    (22, 21, 20, 3, 2, 1, 1, 2, 3, 20, 21, 22) : shortened_binary_Golay_code_graph,
+    (3, 2, 1, 1, 1, 1, 1, 1, 2, 3) : GraphGenerators.DodecahedralGraph,
+    (22, 20, 18, 2, 1, 1, 2, 9, 20, 22) : shortened_extended_ternary_Golay_code_graph,
+    (7, 6, 6, 1, 1, 1, 1, 6, 6, 7) : _compose(bipartite_double_graph, GraphGenerators.HoffmanSingletonGraph),
+    (10, 9, 8, 2, 1, 1, 2, 8, 9, 10) : _compose(bipartite_double_graph, GraphGenerators.SimsGewirtzGraph),
+    (16, 15, 12, 4, 1, 1, 4, 12, 15, 16) : lambda : bipartite_double_graph(GraphGenerators.strongly_regular_graph(77,16,0)),
+    (22, 21, 16, 6, 1, 1, 6, 16, 21, 22) : _compose(bipartite_double_graph, GraphGenerators.HigmanSimsGraph),
+    (3, 2, 2, 1, 1, 1, 1, 2) : Coxeter_graph,
+    (6, 5, 5, 4, 1, 1, 2, 6) : LintSchrijver_graph,
+    (7, 6, 4, 4, 1, 1, 1, 6) : doubly_truncated_Witt_graph,
+    (9, 8, 6, 3, 1, 1, 3, 8) : distance_3_doubly_truncated_Golay_code_graph,
+    (10, 8, 8, 2, 1, 1, 4, 5) : J2_graph,
+    (11, 10, 6, 1, 1, 1, 5, 11) : GraphGenerators.LivingstoneGraph,
+    (5, 4, 1, 1, 1, 1, 4, 5) : GraphGenerators.WellsGraph,
+    (6, 4, 2, 1, 1, 1, 4, 6) : Foster_graph_3S6,
+    (10, 6, 4, 1, 1, 2, 6, 10) : ConwaySmith_for_3S7,
+    (20, 18, 4, 1, 1, 2, 18, 20) : shortened_ternary_Golay_code_graph,
+    (45, 32, 12, 1, 1, 6, 32, 45) : locally_GQ42_graph,
+    (117, 80, 24, 1, 1, 12, 80, 117) : graph_3O73,
+    (22, 21, 20, 1, 2, 6): truncated_binary_Golay_code_graph,
+    (23, 22, 21, 1, 2, 3): binary_Golay_code_graph,
+    (24, 23, 22, 21, 1, 2, 3, 24): extended_binary_Golay_code_graph,
+    (12,11,10,7,1,2,5,12): Leonard_graph,
+    (15,14,10,3,1,5,12,15): cocliques_HoffmannSingleton,
 }
 
 def distance_regular_graph( list arr, existence=False, check=True ):
@@ -2939,6 +2511,13 @@ def distance_regular_graph( list arr, existence=False, check=True ):
             if array != arr:
                 raise RuntimeError("Sage built the wrong distance-regular graph; expected {}, result {}".format(arr,array))
         return G
+
+    def is_iterable(obj):
+        try:
+            iter(obj)
+            return True
+        except TypeError:
+            return False
     
     n = len(arr)    
 
@@ -2948,7 +2527,6 @@ def distance_regular_graph( list arr, existence=False, check=True ):
         if existence:
             return False
         raise EmptySetError("no such graph exists")
-    print("is feasible")
     
     if d == 1:
         if existence: return True
@@ -2963,23 +2541,21 @@ def distance_regular_graph( list arr, existence=False, check=True ):
 
     t = tuple(arr)
     if t in _sporadic_graph_database:
-        print("in sporadic database")
         if existence: return True
         return result(_sporadic_graph_database[t]())
 
     for (f,g) in _infinite_families:
         t = f(arr)
         if t is not None:
-            print("found a family {}".format(f))
+            print("found family {}".format(f))
             try:
-                G = g(*t)
+                G = g(*t) if is_iterable(t) else g(t)
             except:
-                continue #try other constructions
+                continue
             
             #here graph was built (may need to improve to avoid long times)
             if existence: return True
             return result(G)
-    arr == [12,11,10,7,1,2,5,12]
-    #leonard graph
 
-    raise Unknown("Don't know anything about distance-regular graphs with intersection array {}".format(arr))
+    if existence: return Unknown
+    raise RuntimeError("No distance-regular graph with intersection array {} known".format(arr))

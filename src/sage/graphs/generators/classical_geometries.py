@@ -798,9 +798,11 @@ def SymplecticDualPolarGraph(m, q):
         ...
         GAPError: Error, <subfield> must be a prime or a finite field
     """
+    assert(m%2 == 0,"m must be even")
+    
     from sage.libs.gap.libgap import libgap
     G = _polar_graph(m, q, libgap.SymplecticGroup(m, q),
-             intersection_size=(q**(m/2-1)-1)/(q-1))
+             intersection_size=(q**(m//2-1)-1)//(q-1))
 
     G.relabel()
     G.name("Symplectic Dual Polar Graph DSp" + str((m, q)))

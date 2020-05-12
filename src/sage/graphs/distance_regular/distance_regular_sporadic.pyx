@@ -34,6 +34,24 @@ r"""
 include all sporadic (not part of a family) distance regular graphs
 """
 
+def cocliques_HoffmannSingleton():
+    from sage.graphs.cliquer import all_max_clique
+    D = GraphGenerators.HoffmanSingletonGraph()
+    DC = D.complement()
+
+    cocliques = all_max_clique(DC)#100 of this
+
+    edges = []
+    for i in range(100):
+        sC = frozenset(cocliques[i])
+        for j in range(i+1,100):
+            if len(sC.intersection(cocliques[j])) == 8:
+                sC2 = frozenset(cocliques[j])
+                edges.append( (sC,sC2) )
+
+    G = Graph(edges,format="list_of_edges")
+    return G
+
 def locally_GQ42_graph():
    H = libgap.AtlasGroup("3^2.U4(3).D8")
    Ns = H.NormalSubgroups()
@@ -547,3 +565,31 @@ def LintSchrijver_graph():
     H = Graph(edges,format='list_of_edges')
     H.name("Linst-Schrijver graph")
     return H
+
+def Leonard_graph():
+    from sage.combinat.matrices.hadamard_matrix import hadamard_matrix
+    from sage.graphs.cliquer import all_max_clique
+
+    M = hadamard_matrix(12)
+    edges = []
+    for i in range(12):
+        for j in range(12):
+            for k in range(12):
+                if i == k: continue
+                for l in range(12):
+                    if j == l: continue
+                    if M[i,j]*M[i,l]*M[k,j]*M[k,l] == -1:
+                        edges.append( ( (i,j),(k,l) ) )
+
+    D = Graph(edges,format="list_of_edges")
+    cls = all_max_clique(D)
+
+    edges = []
+    for cl in cls:
+        scl = frozenset(cl)
+        for p in cl:
+            edges.append( (p,scl) )
+
+    G = Graph(edges,format="list_of_edges")
+    return G
+    
