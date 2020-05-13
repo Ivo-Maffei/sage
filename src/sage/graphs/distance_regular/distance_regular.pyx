@@ -540,22 +540,22 @@ def doubled_Grassmann_graph(const int q, const int e):
 
 def is_hermitean_cover(list arr):
     if len(arr) != 6:
-        return None
+        return False
 
     k = arr[0] #q^3
     (p,n) = is_prime_power(k,get_data=True)#p^n == k
     if not is_prime(p):
-        return None
+        return False
 
     q = p**(n//3)
     mu = arr[4]#c_2
     r = arr[1]//mu +1
 
     if arr != [q**3,(r-1)*mu,1,1,mu,q**3]:
-        return None
+        return False
 
     if (q*q-1)% r != 0:
-        return None
+        return False
 
     m = (q*q-1)//r
     
@@ -567,13 +567,13 @@ def is_hermitean_cover(list arr):
         if q%2 == 1 and ((q+1)//2)%r == 0:
             #case iii
             return (q,r)
-        return None
+        return False
     
     if mu == (q**3 -1)//r and r%2 == 1 and (q-1)%r == 0:
         #case i
         return (q,r)
     
-    return None
+    return False
 
 def hermitean_cover(const int q,const int r):
 
@@ -659,17 +659,17 @@ def hermitean_cover(const int q,const int r):
 def is_AB_graph(list arr):
     r"""
     Returns $n$ s.t. AB_graph(n) has intersection array $n$
-    returns None otherwise
+    returns False otherwise
     """
-    if len(arr) != 6: return None
+    if len(arr) != 6: return False
 
     twoN = arr[0]+1 #2^n
     (p,n) = is_prime_power(twoN,get_data=True)
-    if p != 2: return None
+    if p != 2: return False
 
     #otherwise we found n
     if arr != [2**n-1,2**n-2,2**(n-1)+1,1,2,2**(n-1)-1]:
-        return None
+        return False
     
     return n
 
@@ -702,19 +702,19 @@ def AB_graph(const int n):
 
 def is_Preparata_graph(list arr):
 
-    if len(arr) != 6: return
+    if len(arr) != 6: return False
     q = (arr[0]+1) // 2
     (p,t) = is_prime_power(q,get_data=True)
-    if p!= 2: return None
+    if p!= 2: return False
     t = (t+1) // 2 #so q = 2^{2t-1}
     
     p = arr[4]
     (r,i) = is_prime_power(p,get_data=True)
-    if r != 2: return None
+    if r != 2: return False
     i = i-1 #so p = 2^{i+1}
 
     if arr != [2*q-1,2*q-p,1,1,p,2*q-1]:
-        return None
+        return False
 
     return (t,i)
 
@@ -781,12 +781,12 @@ def Preparata_graph(const int t,const int i):
     return G
 
 def is_Brouwer_Pasechnik_graph(list arr):
-    if len(arr) != 6: return None
+    if len(arr) != 6: return False
     q = arr[4]
     if not is_prime_power(q):
-        return None
+        return False
     if arr != [q**3-1,q**3-q,q**3-q**2+1,1,q,q**2-1]:
-        return None
+        return False
     return q
 
 def Brouwer_Pasechnik_graph(const int q):
@@ -823,12 +823,12 @@ def Brouwer_Pasechnik_graph(const int q):
     return G
 
 def is_Pasechnik_graph(list arr):
-    if len(arr) != 8: return None
+    if len(arr) != 8: return False
     q = arr[5]
     if not is_prime_power(q):
-        return None
+        return False
     if arr != [q**3,q**3-1,q**3-q,q**3-q**2+1,1,q,q**2-1, q**3]:
-        return None
+        return False
     return q
 
 def Pasechnik_graph(const int q):
@@ -842,12 +842,13 @@ def is_from_association_scheme(list arr):
     Return (n,r) is the graph built from an r-class association scheme of size n
     has interseciont array arr
     """
-    if len(arr) != 6: return None
+    if len(arr) != 6: return False
     n = arr[0]
     mu = arr[4]
+    if (n-1)%mu != 0: return False
     r = (n-1) // mu
     if arr != [n,(r-1)*mu,1,1,mu,n]:#this is any r cover of K_{n+1}
-        return None
+        return False
     return (n,r)
 
 def graph_from_association_scheme(const int n, const int r):
@@ -892,14 +893,14 @@ def is_from_GQ_spread(list arr):
     Returns (s,t) s.t. the graph obtained from a GQ of order (s,t) with a spread
     has the correct intersection array
     """
-    if len(arr) != 6: return None
+    if len(arr) != 6: return False
     t = arr[4]+1
     s = arr[1] // (t-1)
     if arr != [s*t,s*(t-1),1,1,t-1,s*t]:
-        return None
+        return False
     
     if s == 1 and t == 1:#in this case we don't get a connected graph
-        return None
+        return False
     
     return (s,t)
 
@@ -925,21 +926,21 @@ def GQ_spread_graph(GQ, S):
     return G
 
 def is_generalised_symplectic_cover(list arr):
-    if len(arr) != 6: return None
+    if len(arr) != 6: return False
     qn = arr[0]+1
     r = qn // arr[4]
-    if r == 1: return None
+    if r == 1: return False
     if arr != [qn-1,((r-1)*qn)//r,1,1,qn//r,qn-1]:
-        return None
+        return False
     
     (p,k) = is_prime_power(qn,get_data=True)
     if not is_prime(p):
-        return None #q not a prime power
+        return False #q not a prime power
     #q^n = p^k
 
     #n even -> k even
-    if k%2 == 1: return None
-    if qn%r != 0: return None 
+    if k%2 == 1: return False
+    if qn%r != 0: return False 
     (p,j) = is_prime_power(r,get_data=True)
 
     #q = p^i for i>= j (so r|q) and n(=k/i) even
@@ -951,7 +952,7 @@ def is_generalised_symplectic_cover(list arr):
             #q^n = p^k; r = p^j | p^i since i >= j
     else:
         #we found no suitable q
-        return None
+        return False
     return (q,n,r)
 
 def generalised_symplectic_cover(const int q, const int n, r = None):
@@ -1041,16 +1042,16 @@ def generalised_symplectic_cover(const int q, const int n, r = None):
     return G
 
 def is_from_BIBD(list arr):
-    if len(arr) != 6: return None
+    if len(arr) != 6: return False
     k = arr[0]
     l = arr[4]
     v = (k*(k-1))//l +1
     
-    if k <= 2: return None #trivial cases
-    if v == k: return None #diameter 2
+    if k <= 2: return False #trivial cases
+    if v == k: return False #diameter 2
     
     if arr != [k, k-1, k-l, 1,l,k]:
-        return None
+        return False
 
     return (v,k)
 
@@ -1060,13 +1061,13 @@ def graph_from_BIBD(const int v,const int k):
     return D.incidence_graph()
 
 def is_from_Denniston_arc(list arr):
-    if len(arr) != 8: return None
+    if len(arr) != 8: return False
     n = arr[3]
     (p,k) = is_prime_power(n,get_data=True)
-    if p != 2: return None
+    if p != 2: return False
 
     if arr != [n*n-n+1,n*(n-1),n*(n-1),n,1,1,(n-1)**2,n*n-n+1]:
-        return None
+        return False
     return n
 
 def graph_from_Denniston_arc(const int n):
@@ -1133,14 +1134,14 @@ def graph_from_Denniston_arc(const int n):
     return G
 
 def is_unitary_nonisotropic_graph(list arr):
-    if len(arr) != 6: return None
+    if len(arr) != 6: return False
     q = arr[2]-1
     if not is_prime_power(q):
-        return None
-    if q <= 2: return None
+        return False
+    if q <= 2: return False
 
     if arr != [q*q-q,q*q-q-2,q+1,1,1,q*q-2*q]:
-        return None
+        return False
     return q
 
 def unitary_nonisotropic_graph(const int q):
@@ -1188,11 +1189,11 @@ def is_Taylor_graph(list arr):
     taylor_twograph(q) has q^3+1 vertices and l = (q-1)(q^2+1)/2  [for reason look at paper referenced in sage doc about taylor_twograph]
     where any 2 points are in l blocks construct the distance-regular graph we want
     """
-    if len(arr) != 6: return None
+    if len(arr) != 6: return False
     k = arr[0]
     mu = arr[1]
     if arr != [k,mu,1,1,mu,k]:
-        return None
+        return False
     v = number_of_vertices_from_intersection_array(arr)
     n = v//2
     #two-graph has $n$ points
@@ -1251,14 +1252,14 @@ def graph_from_two_graph( D ):
     return G
 
 def is_from_TD(list arr):
-    if len(arr) != 8: return None
+    if len(arr) != 8: return False
 
     u = arr[5]
     m = arr[0]//u
 
-    if m == 1: return None #graph is srg
+    if m == 1: return False #graph is srg
     if arr!=[m*u,m*u-1,(m-1)*u,1,1,u,m*u-1,m*u]:
-        return None
+        return False
     return (m,u)
 
 def graph_from_TD(const int m, const int u):
@@ -1291,6 +1292,7 @@ def generalised_dodecagon(const int s, const int t):
         edges = []
         for p in points:
             for l in lines:
+                sig_check()
                 if p in l:
                     edges.append( (p,l) )
 
@@ -1338,6 +1340,7 @@ def generalised_octagon(const int s, const int t):
         edges = []
         for p in points:
             for l in lines:
+                sig_check()
                 if p in l:
                     edges.append( (p,l) )
 
@@ -1394,13 +1397,14 @@ def extract_lines( G ):
         b = bottom1.pop()
         bottom2 = frozenset(G.neighbors(b,closed=True))
         for v in bottom1:
+            sig_check()
             s = frozenset(G.neighbors(v,closed=True))
             bottom2 = bottom2.intersection(s)
 
         #now bottom2 is a line
         lines.append(tuple(bottom2))#we need tuple or GAP will complain
         
-        #remove pointless edges
+        #remove pointless edges†
         for u in bottom2:
             for v in bottom2:
                 try :
@@ -1427,6 +1431,7 @@ def line_graph_generalised_polygon(H):
         lines = vToLines[v]
         for i,l in enumerate(lines):
             for j in range(i+1,k):
+                sig_check()
                 edges.append( (l,lines[j]) )
     
     G = Graph(edges,format="list_of_edges")
@@ -1541,10 +1546,10 @@ def graph_from_permutation_group( group, const int order ):
     return G
 
 def is_from_Kasami_code(list arr):
-    if len(arr) != 6: return None
+    if len(arr) != 6: return False
     q = arr[4]
     (p,k) = is_prime_power(q,get_data=True)
-    if p != 2: return None
+    if p != 2: return False
 
     if arr == [q*q-1,q*q-q,1,1,q,q*q-1]:
         return (q*q,q)
@@ -1557,14 +1562,14 @@ def is_from_Kasami_code(list arr):
         n += 1
     #here either qn = qk and so q^n = qk
     #or qn > qk and so qk is not a powe of q
-    if qn > qk: return None
-    if n%2 == 0: return None
+    if qn > qk: return False
+    if n%2 == 0: return False
     j = (n-1) //2
 
     if arr == [q**(2*j+1)-1,q**(2*j+1)-q,q**(2*j)*(q-1)+1,1,q,q**(2*j)-1]:
         return (q**(2*j+1),q)
 
-    return None
+    return False
 
 def Kasami_graph(const int s, const int t):
     K = Kasami_code(s,t)
@@ -1573,10 +1578,10 @@ def Kasami_graph(const int s, const int t):
     return G
 
 def is_from_extended_Kasami_code(list arr):
-    if len(arr) != 8: return None
+    if len(arr) != 8: return False
     q = arr[5]
     (p,k) = is_prime_power(q,get_data=True)
-    if p != 2: return None
+    if p != 2: return False
 
     if arr == [q*q, q*q-1, q*q-q,1,1,q,q*q-1,q*q]:
         return (q*q,q)
@@ -1587,14 +1592,14 @@ def is_from_extended_Kasami_code(list arr):
     while qn < qk:
         n += 1
         qn *= q
-    if qn > qk: return None
-    if n%2 == 0: return None
+    if qn > qk: return False
+    if n%2 == 0: return False
     j = (n-1)//2
 
     if arr == [q**(2*j+1),q**(2*j+1)-1,q**(2*j+1)-q,q**(2*j)*(q-1)+1,1,q,q**(2*j)-1,q**(2*j+1)]:
         return (q**(2*j+1),q)
 
-    return None
+    return False
 
 def extended_Kasami_graph(const int s, const int t):
     K = extended_Kasami_code(s,t)
@@ -1607,7 +1612,7 @@ def extended_Kasami_graph(const int s, const int t):
 # UTIL FUNCTIONS
 
 def number_of_vertices_from_intersection_array( array ):
-    cdef int d = len(array) / 2
+    cdef int d = len(array) // 2
 
     cdef int ki = 1
     cdef int v = 1
@@ -1726,7 +1731,7 @@ def is_classical_parameters_graph( array ):
     OUTPUT:
     
     tuple ``(d,b,alpha,beta)`` of classical parameters for array if the array has classical parameters
-    None otherwise
+    False otherwise
 
     EXAMPLES:
 
@@ -1747,10 +1752,10 @@ def is_classical_parameters_graph( array ):
 
     """
     # b_i = arr[i]; c_i = arr[d - 1 + i]
-    if len(array) % 2 != 0 : return None
+    if len(array) % 2 != 0 : return False
     
     d = len(array) // 2
-    if d < 3: return None
+    if d < 3: return False
 
     def c_( const int i ) :
         if i == 0: return 0
@@ -1785,7 +1790,7 @@ def is_classical_parameters_graph( array ):
         try :
             b = ( a_(2) * c_(3) - c_(2) * a_(3)) / ( a_(1) * c_(3) - a_(3) )
         except ZeroDivisionError:
-            return None
+            return False
     else :
         # b \in { c_2 - 1, -a_1 - 1}
         # try b = c_2 - 1
@@ -1800,12 +1805,12 @@ def is_classical_parameters_graph( array ):
             b = -a_(1) - 1
 
     if b in {0,-1} or q_binomial(d,1,q=b) == 0:
-        return None
+        return False
     
     (alpha,beta) = getAlphaBeta(b)
     
     if not checkValues(array, d, b, alpha, beta):
-        return None
+        return False
     
     return (d, b, alpha, beta)
 
@@ -1837,7 +1842,7 @@ def intersection_array_of_pseudo_partition_graph(m,a):
 def is_pseudo_partition_graph( list arr ):
     r"""
     returns (m,a) if arr is the intersection array of a spuedo partition graph with parameters m,a
-    if the array is no good, then returns None
+    if the array is no good, then returns False
     p197
 
     we only handle d >= 3
@@ -1846,12 +1851,12 @@ def is_pseudo_partition_graph( list arr ):
     """
     d = len(arr)
     if d % 2 != 0:
-        return None
+        return False
 
     d = d // 2
 
     if d < 3 :
-        return None
+        return False
     
     #m = 2*d or 2*d +1
     #b_i = (m-i)(1 + a(m-1-i)) for i < d
@@ -1861,7 +1866,7 @@ def is_pseudo_partition_graph( list arr ):
     #c_2 = 2 ( 1+a)
     c2 = arr[d+1]
     if c2 % 2 != 0:
-        return None
+        return False
     a = c2 // 2 -1
 
     #try m = 2d
@@ -1876,7 +1881,7 @@ def is_pseudo_partition_graph( list arr ):
         if arr == newArr:
             return (m,a)
 
-    return None
+    return False
 
 def is_near_polygon(list arr):
     r"""
@@ -1891,12 +1896,12 @@ def is_near_polygon(list arr):
 
     d = len(arr)
     if d % 2 != 0:
-        return None
+        return False
 
     d = d // 2
     
     if arr[d] != 1: #c_1 = 1 ALWAYS
-        return None
+        return False
 
     k = arr[0]
     l = (k - arr[1]) - 1
@@ -1905,11 +1910,11 @@ def is_near_polygon(list arr):
     # we check i = 1 since in our expression for l we use integer division
     for i in range(1,d):
         if arr[i] != k - (l+1)*arr[d+i-1]: #b_i = k - (l+1)c_i
-            return None
+            return False
 
     #finally chek k >= (l+1)c_d
     if k < (l+1)*arr[2*d-1]:
-        return None
+        return False
     
     #if we get here we passed the test
     return (l,arr)
@@ -1968,8 +1973,8 @@ def halve_graph(G) :
     H.add_vertex(G.vertices()[0])
     while queue:
         v = queue.pop(0)
-        close = G.neighbors(v)
-        candidate = [ x for c in close for x in G.neighbors(c) ]# flatten map G.neighbors(_) close
+        close = G.neighbors(v,sort=False)
+        candidate = [ x for c in close for x in G.neighbors(c,sort=False) ]# flatten map G.neighbors(_) close
         for w in candidate:
             if G.distance(v,w) == 2:
                 if w not in H:
@@ -2294,39 +2299,44 @@ def pseudo_partition_graph(m,a):
 
     raise ValueError("no known graph exists")
 
-def near_polygon_graph(l, arr):
+def near_polygon_graph(const int l, arr):
     r"""
     Returns a dist reg graph which is a near polygon with the given intersection array
 
     I NEED TO BE CAREFUL WITH ERRORS: invalid array or unknown graph????
     """
-    def is_generalised_2d_gon(a):
-        d = len(a)/2
+    def is_generalised_2d_gon(a,d):
         #c_1,...,c_{d-1} = 1
         for i in range(1,d):
-            if a[d+i-1] != 1: return None
+            if a[d+i-1] != 1: return False
 
         t = a[2*d-1] -1 #c_d-1
         
         # b_0 = s(t+1)
-        if a[0] % (t+1) != 0: return None
+        if a[0] % (t+1) != 0: return False
         s = a[0] // (t+1)
 
         #b_i = st
         for i in range(1,d):
-            if a[i] != s*t: return None
+            if a[i] != s*t: return False
 
         #otherwise we have it
         return (s,t)
 
     d = len(arr)
-    if l is None:
-        raise ValueError("no near polygon known with such intersection array")
-
+    d = d // 2
     if d < 3:
         raise ValueError("we only handle diameter >= 3")
 
-    d = d // 2
+    pair = is_generalised_2d_gon(arr,d)
+    if pair is not False:
+        if d == 3:
+            return generalised_hexagon(*pair)
+        elif d == 4:
+            return generalised_octagon(*pair)
+        elif d == 6:
+            return generalised_dodecagon(*pair)
+
     k = arr[0]
 
     if k == (l+1)*arr[2*d-1]:
@@ -2411,26 +2421,14 @@ def near_polygon_graph(l, arr):
     if k == (l+1)*(q**d -1)//(q-1) and n == 2*d:
         #dual polar graph
         t = is_classical_parameters_graph(arr)
-        if t is None:
+        if t is False:
             raise ValueError("no near polygon known with such intersection array")
         return graph_with_classical_parameters(*t)
-
-    pair = is_generalised_2d_gon(arr)
-    if pair is not None:
-        if d == 3:
-            return generalised_hexagon(*pair)
-        elif d == 4:
-            return generalised_octagon(*pair)
-        elif d == 6:
-            return generalised_dodecagon(*pair)
-
-    #could also have partition graph
-    #could be classical parameters
     
     raise ValueError("no near polygon known with such intersection array")
 
 #list of pairs (f,g) s.t.
-#if f(array) is not None, then g(*f(array)) should be a graph with the given intersection array
+#if f(array) is not False, then g(*f(array)) should be a graph with the given intersection array
 _infinite_families = [
     (is_classical_parameters_graph, graph_with_classical_parameters),
     (is_pseudo_partition_graph, pseudo_partition_graph),
@@ -2494,15 +2492,17 @@ _sporadic_graph_database = {
     (15,14,10,3,1,5,12,15): cocliques_HoffmannSingleton,
 }
 
-def distance_regular_graph( list arr, existence=False, check=True ):
+def distance_regular_graph( list arr, existence=False, check=True, debug=False ):
     import drg
+    from drg import InfeasibleError
 
     def is_feasible(array):
         try:
             parameters = drg.DRGParameters(array[:d],array[d:])
             parameters.check_feasible()
-        except:
-            return False
+        except (InfeasibleError, AssertionError) as err:
+            if debug: print("unfeasible")
+            return err
         return True
 
     def result(G):
@@ -2518,17 +2518,22 @@ def distance_regular_graph( list arr, existence=False, check=True ):
             return True
         except TypeError:
             return False
-    
-    n = len(arr)    
 
+
+    #check that arr makes sense
+    n = len(arr)
+    if n % 2 == 1:
+        if existence: return False
+        raise EmptySetError("intersection array must have even length")
     d = n // 2
 
-    if not is_feasible(arr):
-        if existence:
-            return False
-        raise EmptySetError("no such graph exists")
+    for x in arr:
+        r = Rational(x)
+        if r <= 0 or not r.is_integer():
+            if existence: return False
+            raise EmptySetError("intersection array must contain only positive integers")
     
-    if d == 1:
+    if d == 1 and arr[1] == 1:
         if existence: return True
         return result(GraphGenerators.CompleteGraph(arr[0]+1))
     if d == 2: 
@@ -2541,13 +2546,14 @@ def distance_regular_graph( list arr, existence=False, check=True ):
 
     t = tuple(arr)
     if t in _sporadic_graph_database:
+        if debug: print("in sporadic database")
         if existence: return True
         return result(_sporadic_graph_database[t]())
 
     for (f,g) in _infinite_families:
         t = f(arr)
-        if t is not None:
-            print("found family {}".format(f))
+        if t is not False:
+            if debug: print("found family {}".format(f))
             try:
                 G = g(*t) if is_iterable(t) else g(t)
             except:
@@ -2557,5 +2563,13 @@ def distance_regular_graph( list arr, existence=False, check=True ):
             if existence: return True
             return result(G)
 
+
+    feasible = is_feasible(arr)
+    if feasible is not True:
+        if existence:
+            return False
+        raise EmptySetError(
+            "no distance-regular graph with intersection array {} exists; reason: {}".format(arr,feasible))
+    
     if existence: return Unknown
     raise RuntimeError("No distance-regular graph with intersection array {} known".format(arr))
