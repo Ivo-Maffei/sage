@@ -53,10 +53,12 @@ def cocliques_HoffmannSingleton():
     return G
 
 def locally_GQ42_graph():
-   H = libgap.AtlasGroup("3^2.U4(3).D8")
+   H = libgap.AtlasGroup("3^2.U4(3).D8",libgap.NrMovedPoints,756)
    Ns = H.NormalSubgroups()
-   group = libgap.Action(Ns[6], Ns[6].Orbit(1))
-   G = Graph(group.Orbit([1,9],libgap.OnSets), format='list_of_edges')
+   for N in Ns:
+       if len(N.GeneratorsSmallest()) == 7:#there is only one
+           break
+   G = Graph(libgap.Orbit(N,[1,9],libgap.OnSets), format='list_of_edges')
    G.name("locally GQ(4,2) graph")
    return G
 

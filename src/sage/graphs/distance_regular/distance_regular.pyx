@@ -2397,7 +2397,7 @@ def near_polygon_graph(const int l, arr):
                 raise ValueError("no near polygon known with such intersection array")
         #note that the diameter of the double grassman graph (q',n',e')
         #is n'
-        return doubled_Grassmann_graph(q,d,e)
+        return doubled_Grassmann_graph(q,e)
 
     if k == n and l == 0:
         #folded cube
