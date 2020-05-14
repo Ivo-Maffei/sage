@@ -1822,98 +1822,29 @@ def get_classical_parameters( list array ):
 
     ALGORITHM:
 
-    This algorithm takes advantage of theorem 6.2.1 on page 195 of bouwer book
-    
-
-    .. NOTE::
-
-        This function may raise a ``ValueError`` if ``check`` is set to ``True``.
+    This algorithm uses sage-drg    
 
     TESTS::
 
         tbd
 
     """
-    # b_i = arr[i]; c_i = arr[d - 1 + i]
-    if len(array) % 2 != 0 : return False
     
-    d = len(array) // 2
-    if d < 3: return False
-
-    def c_( const int i ) :
-        if i == 0: return 0
-        return array[d-1 + i]
-
-    def b_( const int i ) :
-        if i == d: return 0
-        return array[i]
-
-    def a_( const int i ):
-        return array[0] - b_(i) - c_(i) 
-
-    def getAlphaBeta(const int b):
-        return  ( c_(2) / (b + 1) - 1, array[0] / q_binomial(d,1,q=b) )
-
-    def checkValues(arr, const int d, const int b, alpha, beta):
-        trial = intersection_array_from_classical_parameters(d, b, alpha, beta)
-        for i in range(2*d):
-            if trial[i] != arr[i] : return False
-        
-        return True
     
-    case1 = True # assume we are in the case a_i != a_1 * c_i
-    for i in range(2,d): # yes, 2 is intentional
-        # if a_i == a_1 * c_i
-        if a_(i)  == a_(1) * c_(i): 
-            case1 = False
-            break
-        
-    if case1:
-        # b = (a_2*c_3 - c_2*a_3)/(a_1*c_3 - a_3)
-        try :
-            b = ( a_(2) * c_(3) - c_(2) * a_(3)) / ( a_(1) * c_(3) - a_(3) )
-        except ZeroDivisionError:
-            return False
-    else :
-        # b \in { c_2 - 1, -a_1 - 1}
-        # try b = c_2 - 1
-        b = c_(2) - 1
-        if b not in {0,-1} and q_binomial(d,1,q=b) != 0:#look at p196 for reasons why 0,-1
-            (alpha,beta) = getAlphaBeta(b)
-            if not checkValues(array, d, b, alpha, beta) :
-                # then we must have b = -a_1 - 1
-                b = -a_(1) - 1
-        else:
-            # then we must have b = -a_1 - 1
-            b = -a_(1) - 1
-
-    if b in {0,-1} or q_binomial(d,1,q=b) == 0:
-        return False
+    #else t is a list of possible parameters
+    #we only need 1 since corollary 6.2.2
+    return t[0]
     
-    (alpha,beta) = getAlphaBeta(b)
     
-    if not checkValues(array, d, b, alpha, beta):
-        return False
-    
-    return (d, b, alpha, beta)
-
-#map (d,b,alpha,beta) -> construction
-_sporadic_classical_parameters = {
-    (3,1,4,9) : GraphGenerators.GossetGraph,
-    (3,-2,-4,10) : large_Witt_graph,
-    (3,-2,-2,5) : truncated_Witt_graph,
-    (3,-2,-3,8) : extended_ternary_Golay_code_graph,
-    (3,-2,-3,7) : doubly_truncated_binary_Golay_code_graph,
-}
-
-def is_knwon_classical_parameters(list arr):
+def is_classical_parameters_graph(list array):
     r"""
-    Given an intersection array, we return (d,b,alpha,beta,gamma) s.t.
-    (d,b,alpha,beta) are classical parameters for the array and
-    graph_from_classical_parameters(d,b,alpha,beta,gamma) is a graph with
-    the given intersection array
+    checks if Sage can build a graph for the given parameters;
+    if so returns an integer gamma s.t. graph_with_classical_parameters(d,b,alpa,beta,gamma)
+    returns the given graph.
+    The value of gamma is used for internal purpose only;
+    If this is not the case it returns False
     """
-
+    import drg
     from sage.functions.log import log
     from sage.rings.integer_ring import ZZ
     from sage.rings.rational_field import QQ
@@ -1939,7 +1870,6 @@ def is_knwon_classical_parameters(list arr):
     #gamma is simply an integer indicating the type of graph
 
     #gamma -> graph
-    # -1   -> in sporadic database
     #  0   -> Johnson
     #  1   -> Hamming
     #  2   -> Halved cube
@@ -1956,14 +1886,17 @@ def is_knwon_classical_parameters(list arr):
     # 13   -> Bilinear form graph
     # 14   -> Alternating form graph
     
-    t = get_classical_parameters(arr)
-    if t is False:#arr has no classical parameters
+    # b_i = arr[i]; c_i = arr[d - 1 + i]
+    if len(array) % 2 != 0 : return False
+    d = len(array) // 2
+
+    p = drg.DRGParameters(array[:d],array[d:])
+    t = p.is_classical()
+
+    if t is False:
         return False
 
     (d,b,alpha,beta) = t
-    
-    if t in _sporadic_classical_parameters:
-        return (d,b,alpha,beta,-1)
 
     gamma = None
     
@@ -2039,6 +1972,58 @@ def is_knwon_classical_parameters(list arr):
     if gamma is None: return False
 
     return (d,b,alpha,beta,gamma)
+
+def graph_with_classical_parameters(const int d, const int b, alpha_in, beta_in, const int gamma):
+    from sage.functions.log import log
+    from sage.functions.other import sqrt
+
+    alpha = Rational(alpha_in)
+    beta = Rational(beta_in)
+    if alpha.is_integer(): alpha = int(alpha)
+    if beta.is_integer(): beta = int(beta)
+
+    if gamma == 0:
+        return GraphGenerators.JohnsonGraph(beta+d,d)
+    elif gamma == 1:
+        return GraphGenerators.HammingGraph(d,beta+1)
+    elif gamma == 2:
+        a = 0 if beta == 2*d+1 else 1
+        return halved_cube(beta + a)
+    elif gamma == 3:
+        return GraphGenerators.UnitaryDualPolarGraph(2*d,-b)
+    elif gamma == 4:
+        q = -b
+        return generalised_hexagon(q,q**3)
+    elif gamma == 5:
+        return hermitean_form_graph(d,(-b)**2)
+    elif gamma == 6:
+        n = int(log( (beta+1)*(b-1)+1, b)) + d -1
+        return Grassmann_graph(b,n,d)
+    elif gamma == 7:
+        return dual_polar_orthogonal(1,d,b)
+    elif gamma == 8:
+        return GraphGenerators.SymplecticDualPolarGraph(2*d,b)
+    elif gamma == 9:
+        return dual_polar_orthogonal(-1,d,b)
+    elif gamma == 10:
+        r = int(sqrt(b))
+        return GraphGenerators.UnitaryDualPolarGraph(2*d+1,r)
+    elif gamma == 11:
+        r = int(sqrt(b))
+        return GraphGenerators.UnitaryDualPolarGraph(2*d,r)
+    elif gamma == 12:
+        q = int(sqrt(b))
+        m = int(log( (beta+1)*(q-1)+1, q)) -1
+        Ustimenko_graph(m,q)
+    elif gamma == 13:
+        e = int(log(beta+1,b))
+        return bilinear_form_graph(d,e,b)
+    elif gamma == 14:
+        q = int(sqrt(b))
+        a = 0 if beta+1 == q**(2*d-1) else 1
+        return alternating_form_graph(2*d+a,q)
+
+    raise ValueError("incorrect value of gamma")
 
 def intersection_array_of_pseudo_partition_graph(m,a):
     r"""
@@ -2305,211 +2290,6 @@ def extended_biparitite_double_graph(G):
 
 ################################################################################
 # BIG FUNCTIONS THAT GROUP CONSTRUCTIONS
-
-def graph_with_classical_parameters( const int d,
-                                     const int b,
-                                     input_alpha,
-                                     input_beta ):
-    r"""
-    Return a distance-regular graph $G$ with the given classical parameters.
-
-    We assume $d \geq 3$.
-    If no distance-regular graph satisfying the input parameters is found,
-    then this function will raise a ValueError
-
-    INPUT:
-
-    - ``d`` -- integer; we assume this is greater or equal than 3
-    - ``b`` -- integer
-    - ``alpha, beta`` -- numbers
-
-    OUTPUT:
-    
-    A distance-regular graph $G$ with classical parameters ``(d,b,alpha,beta)``
-
-    EXAMPLES::
-    
-        sage: g = distance_regulat_graph_with_classical_parameters(3,-2,-4,10)
-        sage: g.is_distance_regular()
-        True
-        sage: a = intersection_array_from_graph(g)
-        sage: get_classical_parameters_from_intersection_array(a)
-        (3,-2,-4,10)0
-    
-    .. NOTE::
-    
-        The outputted graph is NOT unique. There might be another graph with
-        the given classical parameters. However this function is deterministic,
-        i.e. it will always output the same graph given the same input.
-
-    TESTS::
-
-        tbd
-
-    """
-    
-    def is_power_of( const int num, const int base ):
-        if base == 1:
-            if num == base: return 0
-            else: return -1
-        if base == 0: return -1
-        # this functions checks if num = base^k for some k in N and return k
-        # if no such k exists, then -1 is returned
-        cdef int baseToK = 1
-        cdef int k = 0
-        #invariant : baseToK = base^k
-        while ( baseToK < num ):
-            baseToK *= base
-            k += 1
-
-        if baseToK == num:
-            return k
-        else:
-            return -1
-    # end is_power_of
-
-    def q_of(const int num, const int exp ):
-        if exp == 0: return -1
-        # return prime power q s.t. num = q^exp
-        # otherwise return -1
-        (b,k) = is_prime_power(num, True)
-        # if k != 0, then b^k = num
-        # if k == 0, then num is not a prime power
-        if k != 0 and (k % exp) == 0:
-            # q^exp = b^k => q = b^i where i = k / exp
-            return  b**(k/exp)
-        else:
-            return -1
-    # end q_of
-
-    if d < 3:
-        raise ValueError(
-            "We only consider distance-regular graphs with diameter >=3")
-    
-    alpha = Rational(input_alpha)
-    beta = Rational(input_beta)
-    if alpha.is_integer(): alpha = int(alpha)
-    if beta.is_integer(): beta = int(beta)
-    
-    if b == 1 :
-        if alpha == 1 and beta >= d:#since beta+d = n >= 2*d
-            # Johnson Graph
-            return GraphGenerators.JohnsonGraph(beta+d, d)
-        elif d == 3 and alpha == 4 and beta == 9:
-            # Gosset graph
-            return GraphGenerators.GossetGraph()
-        elif alpha == 0:
-            # Hamming Graph
-            n = beta + 1
-            return GraphGenerators.HammingGraph(d,n)
-        elif alpha == 2 and ( beta == 2*d + 1 or beta == 2*d - 1):
-            # Halved cube graph
-            if beta == 2*d +1: # then n = beta
-                return halved_cube(beta)
-            else: # then n = beta + 1
-                return halved_cube(beta+1)
-        else :
-            raise ValueError(
-                "No distance-regular graph with the given parameters exists")
-            
-    elif b == -2:
-        if d == 3 and alpha == -4 and beta == 10:
-            # large Witt graph
-            return large_Witt_graph()
-        elif d == 3 and alpha == -2 and beta == 5:
-            # truncate Witt graph
-           return truncated_Witt_graph()
-        elif d == 3 and alpha == -3 and beta == 8:
-            #goolay code graph
-            return extended_ternary_Golay_code_graph()
-        elif d == 3 and alpha == -3 and beta == 7:
-            return doubly_truncated_binary_Golay_code_graph()
-    
-    elif b < 0 and is_prime_power(-b):
-        if alpha +1 == (1 + b*b)/(1 + b) and beta +1 == q_binomial(d+1,1,b):
-            # U(2d,r)
-            return GraphGenerators.UnitaryDualPolarGraph(2*d,-b)
-        elif d == 3 and alpha + 1 == 1 / (1+b) and beta + 1 == q_binomial(3,1,-b):
-            q = -b
-            if q < 4:
-                return generalised_hexagon(q,q**3)
-            else:
-                raise ValueError("too big")
-            pass
-        elif alpha + 1 == b and beta + 1 == b**d:
-            q = (-b)**2 # b = -r
-            return hermitean_form_graph(d,q)
-        pass
-    
-    elif is_prime_power(b):
-        if alpha == b and is_power_of( (beta +1)*(b-1)+1, b ) >= d+1:
-            # we checked that beta + 1 = (b^(n-d+1) - 1)/(b - 1) for n >= 2d
-            # Grassmann graph
-            n = is_power_of( (beta+1)*(b-1)+1,b)+d-1
-            return Grassmann_graph(b,n,d)
-        elif alpha == 0 and is_power_of( beta, b ) in {0, 0.5, 1, 1.5, 2}:
-            # dual polar graphs
-            e = is_power_of( beta, b )
-            if e == 0:
-                #maximal Witt index
-                return dual_polar_orthogonal(1,d,b)
-            if e == 1:
-                #dual sympletic
-                return GraphGenerators.SymplecticDualPolarGraph(2*d, b)
-            elif e == 2:
-                #non maximal Witt index
-                return dual_polar_orthogonal(-1,d,b)
-            elif e == 1.5:
-                #hermitean form
-                r = q_of(b,2)#b=r^2
-                if r == -1:
-                    raise ValueError("something wrong")
-                return GraphGenerators.UnitaryDualPolarGraph(2*d+1,r)
-            elif e == 0.5:
-                #other hermitean form
-                r = q_of(b,2)#b=r^2
-                if r == -1:
-                    raise ValueError("something wrong")
-                return GraphGenerators.UnitaryDualPolarGraph(2*d,r)
-                
-        elif ( q_of(b,2) != -1 and alpha + 1 == q_binomial(3, 1, q_of(b,2))
-               and beta + 1 in { q_binomial(2*d+2, 1, q_of(b,2)),
-                                 q_binomial(2*d, 1, q_of(b,2)) }
-        ):
-            # half dual polar graph or dist. 1 or 2 in sympletic dual polar graphs
-            q = q_of(b,2)
-            m = is_power_of( (beta+1)*(q-1) +1, q) -1
-            Ustimenko_graph(m,q)
-        elif ( d == 3 and q_of(b,4) != -1
-               and alpha + 1 == q_binomial(5, 1, q_of(b,4))
-               and beta + 1 == q_binomial( 10, 1, q_of(b,4))
-        ):
-            raise ValueError(
-                "Exceptional Lie graph E_{7,7}(%d). Too big to be constructed"%(q_of(b,4)) )
-        elif alpha + 1 == b and is_power_of( beta+1, b) >= d:
-            # bilinear form
-            e = is_power_of(beta+1, b)
-            return bilinear_form_graph(d,e,b)
-        elif ( q_of(b,2) != -1 and alpha + 1 == b
-               and beta + 1 in { q_of(b,2)**(2*d-1), q_of(b,2)**(2*d+1) }
-        ):
-            # alternating form graphs or quadratic forms
-            q = q_of(b,2)
-            if beta + 1 == q**(2*d-1):
-                n = 2*d
-            else:
-                n = 2*d+1
-            return alternating_form_graph(n,q)
-        elif ( d == 3 and q_of(b,4) != -1 and alpha + 1 == b
-               and beta + 1 == q_of(b,4)**9
-        ):
-            raise ValueError(
-                "Affine E_6(%d) graph. Too big to be constructed"%(q_of(b,4)) )
-        pass
-
-    raise ValueError(
-        "Can't find a distance-regular graph with the given parameters")
-        
     
 def pseudo_partition_graph(m,a):
     r""" p 198"""
@@ -2716,6 +2496,11 @@ _sporadic_graph_database = {
     (24, 23, 22, 21, 1, 2, 3, 24): extended_binary_Golay_code_graph,
     (12,11,10,7,1,2,5,12): Leonard_graph,
     (15,14,10,3,1,5,12,15): cocliques_HoffmannSingleton,
+    (27,10,1,1,10,27): GraphGenerators.GossetGraph,
+    (30,28,24,1,3,15): large_Witt_graph,
+    (15,14,12,1,1,9): truncated_Witt_graph,
+    (24,22,20,1,2,12): extended_ternary_Golay_code_graph,
+    (21,20,16,1,2,12): doubly_truncated_binary_Golay_code_graph,
 }
 
 def distance_regular_graph( list arr, existence=False, check=True, debug=False ):
