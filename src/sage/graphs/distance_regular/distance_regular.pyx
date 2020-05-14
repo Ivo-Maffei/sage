@@ -60,40 +60,6 @@ from sage.graphs.distance_regular_related_objects import (pseudocyclic_associati
 
 ################################################################################
 # UNBOUNDED DIAMETER
-
-def graph_from_genHad(G,M):
-    from sage.combinat.designs.difference_family import group_law
-    from sage.categories.vector_spaces import VectorSpaces
-    
-    (identity, op, inverse) = group_law(G)
-    n = len(M)
-    n2 = n*n
-    #first build skew symmetric from it
-    RH = [ [0]*n2 for _ in range(n2)]
-    for i in range(n):
-        for j in range(n):
-            for k in range(n):
-                for l in range(n):
-                    h1 = G(M[k][j])
-                    h2 = G(M[i][l])
-                    RH[n*i+j][n*k+l] = op(h1,inverse(h2))
-    print("built RH")
-    #vertices is {1,...,n} x G, n is size of M
-    # (i,g) ~ (j,h) iff  and gM[i,j] = h
-
-    edges = []
-    for i in range(n2):
-        for g in G:
-            for j in range(i+ 1,n2):
-                mij = RH[i][j]
-                h = op(g,mij)
-                if G in VectorSpaces:
-                    g.set_immutable()
-                    h.set_immutable()
-                edges.append( ((i,g),(j,h)) )
-
-    G = Graph(edges)
-    return G
                 
 def Ustimenko_graph(m,q):
     r"""
@@ -114,7 +80,7 @@ def Ustimenko_graph(m,q):
                     edgesToAdd.append( (u,v) )
 
     G.add_edges(edgesToAdd)
-    return G            
+    return G
 
 def dual_polar_orthogonal(const int e, const int  d, const int q):
     r"""
@@ -539,17 +505,25 @@ def doubled_Grassmann_graph(const int q, const int e):
 # UNBOUNDED ORDER
 
 def is_hermitean_cover(list arr):
+    r"""
+    Given an intersection array it return (q,r)
+    such that hermitean_cover(q,r) is a graph with the given intersection
+    array. If no (q,r) exists, then it returns False
+    """
     if len(arr) != 6:
         return False
 
     k = arr[0] #q^3
-    (p,n) = is_prime_power(k,get_data=True)#p^n == k
-    if not is_prime(p):
+    (p,n) = is_prime_power(k,get_data=True)#p^n == k for prime p or n==0
+    if n == 0:
         return False
 
     q = p**(n//3)
     mu = arr[4]#c_2
     r = arr[1]//mu +1
+
+    if r <= 1:#r=1 -> complete graph
+        return False
 
     if arr != [q**3,(r-1)*mu,1,1,mu,q**3]:
         return False
@@ -576,17 +550,16 @@ def is_hermitean_cover(list arr):
     return False
 
 def hermitean_cover(const int q,const int r):
-
+    r"""
+    Implent an antipodal $r$-cover of $K_{q^3+1}$ 
+    using the construction due to Cameron ...
+    """
     if not is_prime_power(q):
         raise ValueError("invalid input: q must be prime power")
 
-    if r%2 == 1 and (q-1)%r == 0:
-        pass
-    elif q%2 == 0 and (q+1)%r == 0:
-        pass
-    elif q%2 == 1 and ((q+1)//2)%r == 0:
-        pass
-    else:
+    if not( (r%2 == 1 and (q-1)%r == 0) or
+            (q%2 == 0 and (q+1)%r == 0) or
+            (q%2 == 1 and ((q+1)//2)%r == 0)):
         raise ValueError("invalid input")
 
     Fq2 = libgap.GF(q*q)
@@ -667,6 +640,9 @@ def is_AB_graph(list arr):
     (p,n) = is_prime_power(twoN,get_data=True)
     if p != 2: return False
 
+    if n == 1:#we get disconnected graph on 4 vertices
+        return False
+
     #otherwise we found n
     if arr != [2**n-1,2**n-2,2**(n-1)+1,1,2,2**(n-1)-1]:
         return False
@@ -693,6 +669,7 @@ def AB_graph(const int n):
     for i,x in enumerate(vectors):
         for y in vectors[i+1:]:
             for a in vectors:
+                sig_check()
                 b = a + f[x+y]
                 edges.append(( (x,a),(y,b) ))
                 edges.append(( (y,a),(x,b) ))
@@ -701,18 +678,27 @@ def AB_graph(const int n):
     return G
 
 def is_Preparata_graph(list arr):
-
+    r"""
+    return (t,i) s.t. Preparata_graph(t,i) has the given
+    intersection array.
+    """
     if len(arr) != 6: return False
+    
     q = (arr[0]+1) // 2
     (p,t) = is_prime_power(q,get_data=True)
     if p!= 2: return False
     t = (t+1) // 2 #so q = 2^{2t-1}
+    #we also have t> 0
     
     p = arr[4]
     (r,i) = is_prime_power(p,get_data=True)
     if r != 2: return False
     i = i-1 #so p = 2^{i+1}
+    #we have i >=0
 
+    if i > 2*t-2:
+        return False
+    
     if arr != [2*q-1,2*q-p,1,1,p,2*q-1]:
         return False
 
@@ -725,6 +711,9 @@ def Preparata_graph(const int t,const int i):
     
     if i > 2*t-2 or i < 0:
         raise ValueError("i should be between (inclusive) 0 and 2*t-2")
+
+    if t < 1:
+        raise ValueError("t should be greater than 1")
     
     q = 2**(2*t-1)
     Fq= GF(q)
@@ -747,6 +736,7 @@ def Preparata_graph(const int t,const int i):
         toQ = {}
         Qrep = {}
         for x in Fq:
+            sig_check()
             xA = frozenset( [x+a for a in A])
             toQ[x] = xA
             Qrep[xA] = x
@@ -781,6 +771,11 @@ def Preparata_graph(const int t,const int i):
     return G
 
 def is_Brouwer_Pasechnik_graph(list arr):
+    r"""
+    returns q s.t. Brouwer_Pasechnik_graph(q)
+    has the intersection array passed;
+    returns False if q doesn't exists
+    """
     if len(arr) != 6: return False
     q = arr[4]
     if not is_prime_power(q):
@@ -801,18 +796,11 @@ def Brouwer_Pasechnik_graph(const int q):
     for v in V:
         v.set_immutable()
 
-    #ensuer V[0] is zero
-    if not V[0].is_zero():
-        for i in range(q**3):
-            if V[i].is_zero():
-                z = V[i]
-                V[i] = V[0]
-                V[0] = z
-
     edges = []
     for u in V:
         for v in V:
             for v2 in V:
+                sig_check()
                 if v2 == v: continue #otherwise cross(v,v2) == 0 and u2 == u
                 u2 = u+ cross(v,v2)
                 u2.set_immutable()
@@ -823,6 +811,10 @@ def Brouwer_Pasechnik_graph(const int q):
     return G
 
 def is_Pasechnik_graph(list arr):
+    r"""
+    Returns q s.t. Pasechnik_graph(q) has the intersection array
+    given; returns False if q doesn't exists
+    """
     if len(arr) != 8: return False
     q = arr[5]
     if not is_prime_power(q):
@@ -839,15 +831,22 @@ def Pasechnik_graph(const int q):
 
 def is_from_association_scheme(list arr):
     r"""
-    Return (n,r) is the graph built from an r-class association scheme of size n
+    Return (n,r) if the graph built from a pseudocyclic r-class association scheme of size n
     has interseciont array arr
+    It returns False if this is not the case of Sage can't build such association scheme
     """
     if len(arr) != 6: return False
     n = arr[0]
     mu = arr[4]
-    if (n-1)%mu != 0: return False
+    
+    if n<= 0 or  mu <= 0 or (n-1)%mu != 0: return False
     r = (n-1) // mu
+    
+    if r == 1:#complete graph
+        return False
     if arr != [n,(r-1)*mu,1,1,mu,n]:#this is any r cover of K_{n+1}
+        return False
+    if pseudocyclic_association_scheme(n,r,existence=True) is not True:
         return False
     return (n,r)
 
@@ -895,11 +894,18 @@ def is_from_GQ_spread(list arr):
     """
     if len(arr) != 6: return False
     t = arr[4]+1
+    
+    if t <= 1: return False
+    
     s = arr[1] // (t-1)
+    
     if arr != [s*t,s*(t-1),1,1,t-1,s*t]:
         return False
     
     if s == 1 and t == 1:#in this case we don't get a connected graph
+        return False
+
+    if generalised_quadrangle_with_spread(s,t,existence=True) is not True:
         return False
     
     return (s,t)
@@ -919,6 +925,7 @@ def GQ_spread_graph(GQ, S):
         for i in range(k):
             p1 = b[i]
             for j in range(i+1,k):
+                sig_check()
                 p2 = b[j]
                 edges.append( (p1,p2) )
 
@@ -926,15 +933,26 @@ def GQ_spread_graph(GQ, S):
     return G
 
 def is_generalised_symplectic_cover(list arr):
+    r"""
+    Returns (q,n,r) s.t. generalised_symplectic_cover(q,n,r)
+    has the intersection array given. It returns False otherwise.
+    """
+
     if len(arr) != 6: return False
+    
     qn = arr[0]+1
+
+    if arr[4] == 0:
+        return False
+    
     r = qn // arr[4]
-    if r == 1: return False
+
+    if r <= 1: return False
     if arr != [qn-1,((r-1)*qn)//r,1,1,qn//r,qn-1]:
         return False
     
     (p,k) = is_prime_power(qn,get_data=True)
-    if not is_prime(p):
+    if k == 0:
         return False #q not a prime power
     #q^n = p^k
 
@@ -953,6 +971,7 @@ def is_generalised_symplectic_cover(list arr):
     else:
         #we found no suitable q
         return False
+    
     return (q,n,r)
 
 def generalised_symplectic_cover(const int q, const int n, r = None):
@@ -964,6 +983,8 @@ def generalised_symplectic_cover(const int q, const int n, r = None):
     if r == None:
         r = q
 
+    if n <= 0:
+        raise ValueError("n must be positive")
     if n%2 == 1:
         raise ValueError("n must be even")
     if q%r != 0:
@@ -990,6 +1011,7 @@ def generalised_symplectic_cover(const int q, const int n, r = None):
         toQ = {}# map a -> a+A
         Qrep = {}#map a+A -> a (pick unique representative for each a+A)
         for x in Fq:
+            sig_check()
             xA = frozenset([x+a for a in A])
             Q.add(xA)
             toQ[x] = xA
@@ -1006,6 +1028,7 @@ def generalised_symplectic_cover(const int q, const int n, r = None):
     M = []
     n2 = n//2
     for i in range(n):
+        sig_check()
         row = [0]*n
         if i < n2:
             row[n2+i] = 1
@@ -1028,6 +1051,7 @@ def generalised_symplectic_cover(const int q, const int n, r = None):
             Bxy = x*M*y
             Byx = - Bxy
             for b in Q:
+                sig_check()
                 a = b + Bxy
                 a2 = b + Byx
                 if r != q:
@@ -1038,25 +1062,36 @@ def generalised_symplectic_cover(const int q, const int n, r = None):
                 edges.append( ( (a2,y),(b,x) ) )
 
     G = Graph(edges, format="list_of_edges")
-    G.name("antipodal %d cover of K_{%d^%d}"%(q,q,n))#to be changed
+    G.name("Symplectic antipodal %d cover of K_{%d^%d}"%(q,q,n))#to be changed
     return G
 
-def is_from_BIBD(list arr):
+def is_from_square_BIBD(list arr):
+    r"""
+    Returns (v,k) s.t. graph_from_BIBD(v,k) has the correct
+    intersection array; False otherwise
+    """
     if len(arr) != 6: return False
     k = arr[0]
     l = arr[4]
+    if l == 0 or (k*(k-1))%l != 0: return False
     v = (k*(k-1))//l +1
     
     if k <= 2: return False #trivial cases
     if v == k: return False #diameter 2
+    #this will force v >= 4 as there is no BIBD with v<k
     
     if arr != [k, k-1, k-l, 1,l,k]:
         return False
 
+    if Sage_Designs.balanced_imcomplete_block_design(v,k,lmbd=l,existence=True) is not True:
+        return False
+
     return (v,k)
 
-def graph_from_BIBD(const int v,const int k):
-    lmbd = (k*(k-1))//(v-1) if v!= 1 else 1#the division should not truncate
+def graph_from_square_BIBD(const int v,const int k):
+    if v == 1 or (k*(k-1))%(v-1) != 0:
+        raise ValueError("no square BIBD exists with v={}, k={}".format(v,k))
+    lmbd = (k*(k-1))//(v-1)
     D = Sage_Designs.balanced_incomplete_block_design(v,k,lmbd=lmbd)
     return D.incidence_graph()
 
@@ -1086,6 +1121,7 @@ def graph_from_Denniston_arc(const int n):
     #ensure elemsFq[0] == 0
     if not elemsFq[0].is_zero():
         for i,x in enumerate(elemsFq):
+            sig_check()
             if x.is_zero():
                 y = elemsFq[0]
                 elemsFq[0] = x
@@ -1095,6 +1131,7 @@ def graph_from_Denniston_arc(const int n):
     #find irreducible quadratic
     candidates = set(Fq)
     for x in elemsFq[1:]:#we rely on the first element to be 0
+        sig_check()
         a = x + (1/x)
         candidates = candidates.difference({a})
 
@@ -1108,6 +1145,7 @@ def graph_from_Denniston_arc(const int n):
 
     arc = set() #complete arc                
     for v in PG.ground_set():
+        sig_check()
         if v[0] == 1 and Q(v[1],v[2]) in Fn:
             arc.add(v)
 
@@ -1118,6 +1156,7 @@ def graph_from_Denniston_arc(const int n):
         sb = Set(b)
         for p in b:
             if p in arc:
+                sig_check()
                 newLine = sb.difference(arc)
                 lines.append(newLine)
                 break
@@ -1127,6 +1166,7 @@ def graph_from_Denniston_arc(const int n):
     for b in lines:
         bs = frozenset(b)
         for p in b:
+            sig_check()
             edges.append( (p,bs) )
 
     G = Graph(edges,format="list_of_edges")
@@ -1163,11 +1203,13 @@ def unitary_nonisotropic_graph(const int q):
 
     vertices = [] #projective points that are nonisotropic
     for P in V.subspaces(1):
+        sig_check()
         v = P.basis()[0]
         if h(v,v) != 0:
             vertices.append(v)
 
     for v in vertices:
+        sig_check()
         v.set_immutable()
 
     n = len(vertices)
@@ -1175,6 +1217,7 @@ def unitary_nonisotropic_graph(const int q):
     for i in range(n):
         v = vertices[i]
         for j in range(i+1,n):
+            sig_check()
             w = vertices[j]
             if h(v,w) == 0:
                 edges.append((v,w))
@@ -1192,13 +1235,24 @@ def is_Taylor_graph(list arr):
     if len(arr) != 6: return False
     k = arr[0]
     mu = arr[1]
+    if k == 0 or mu == 0:
+        return False
     if arr != [k,mu,1,1,mu,k]:
         return False
-    v = number_of_vertices_from_intersection_array(arr)
-    n = v//2
+    
+    n = k+1
+    if n < 3: return False#no block
+
+    
     #two-graph has $n$ points
     l = k - mu-1 #any 2 points are in a1 triangles
     #hence any 2 points are in l blocks
+
+    if l == n-2:#complete two-graph -> graph is disconnected
+        return False
+
+    if two_graph(n,l,regular=True,existence=True) is not True:
+        return False
     return (n,l)
 
 def Taylor_graph(const int n,const int l):
@@ -1214,13 +1268,14 @@ def graph_from_two_graph( D ):
     edges = []
     
     #vertices = x^+, x^- for all x\in X
-    # x^a,y^b are adjecent if: x != y and ( (a == b and {x,y,inf} coherent) or ( a != B and {x,y,inf} not coherent) )
+    # x^a,y^b are adjecent if: x != y and ( (a == b and {x,y,inf} coherent) or ( a != b and {x,y,inf} not coherent) )
     # inf is just a point in X
     inf = D.ground_set()[0]
 
     #first we do all coherent edges
     S = set() #set of coherent pairs
     for b in D.blocks():
+        sig_check()
         if b[0] == inf: x=b[1]; y=b[2]
         elif b[1] == inf: x=b[0]; y=b[2]
         elif b[2] == inf: x=b[0];y=b[1]
@@ -1232,6 +1287,7 @@ def graph_from_two_graph( D ):
 
     #inf is coherent with any other vertex!!
     for x in D.ground_set()[1:]:#we don't want edge inf inf
+        sig_check()
         #{x,inf,inf} is coherent
         edges.append( ((x,0),(inf,0)) )
         edges.append( ((x,1),(inf,1)) )
@@ -1242,6 +1298,7 @@ def graph_from_two_graph( D ):
     for i in range(l):
         x = D.ground_set()[i]
         for j in range(i+1,l):#go through all ordered pairt
+            sig_check()
             y = D.ground_set()[j]
             if frozenset([x,y]) in S: continue#x,y,inf coherent
             #otherwise add edge
@@ -1255,11 +1312,16 @@ def is_from_TD(list arr):
     if len(arr) != 8: return False
 
     u = arr[5]
+    if u == 0 or arr[0]%u != 0: return False
     m = arr[0]//u
 
     if m == 1: return False #graph is srg
     if arr!=[m*u,m*u-1,(m-1)*u,1,1,u,m*u-1,m*u]:
         return False
+
+    if Sage_Designs.symmetric_net(m,u,existence=True) is not True:
+        return False
+    
     return (m,u)
 
 def graph_from_TD(const int m, const int u):
@@ -1331,7 +1393,7 @@ def generalised_octagon(const int s, const int t):
         raise ValueError("invalid input")
 
     if orderType == 0:
-        H = strongly_regular_graph((q+1)*(q*q+1),q*(q+1),q-1,q+1)
+        H = strongly_regular_graph((q+1)*(q*q+1),q*(q+1),q-1,q+1,check=False)
         # above is pointgraph of generalised quadrangle (q,q)
         lines = extract_lines(H)
         points = list(H.vertices())
@@ -1422,6 +1484,7 @@ def line_graph_generalised_polygon(H):
     vToLines = { v : [] for v in H.vertices(sort=False) }
     for l in lines:
         for p in l:
+            sig_check()
             vToLines[p].append(l)
 
     k = len(vToLines[lines[0][0]])
@@ -1475,6 +1538,7 @@ def generalised_hexagon( const int s, const int t):
             pb = p.basis_matrix()
             for l in lines:
                 if p.is_subspace(l):
+                    sig_check()
                     edges.append( (pb, l.basis_matrix()) )
 
         G = Graph(edges, format='list_of_edges')
@@ -1565,9 +1629,12 @@ def is_from_Kasami_code(list arr):
     if qn > qk: return False
     if n%2 == 0: return False
     j = (n-1) //2
+    if j== 0: return False
+    
+    assert(qn == q**(2*j+1), "The code is incorrect")
 
-    if arr == [q**(2*j+1)-1,q**(2*j+1)-q,q**(2*j)*(q-1)+1,1,q,q**(2*j)-1]:
-        return (q**(2*j+1),q)
+    if arr == [qn-1,qn-q,q**(2*j)*(q-1)+1,1,q,q**(2*j)-1]:
+        return (qn,q)
 
     return False
 
@@ -1595,9 +1662,12 @@ def is_from_extended_Kasami_code(list arr):
     if qn > qk: return False
     if n%2 == 0: return False
     j = (n-1)//2
+    if j== 0: return False
 
-    if arr == [q**(2*j+1),q**(2*j+1)-1,q**(2*j+1)-q,q**(2*j)*(q-1)+1,1,q,q**(2*j)-1,q**(2*j+1)]:
-        return (q**(2*j+1),q)
+    assert(qn == q**(2*j+1), "Something is badly wrong")
+    
+    if arr == [qn,qn-1,qn-q,q**(2*j)*(q-1)+1,1,q,q**(2*j)-1,qn]:
+        return (qn,q)
 
     return False
 
@@ -1612,13 +1682,23 @@ def extended_Kasami_graph(const int s, const int t):
 # UTIL FUNCTIONS
 
 def number_of_vertices_from_intersection_array( array ):
+    r"""
+    if array is not a valid intersection array, then errors are likely to occur
+    """
+    n = len(array)
+    if n%2 == 1:
+        raise ValueError("intersection array must have even length")
+
+    if 0 in array:
+        raise ValueError("intersection array must be positive")
+    
     cdef int d = len(array) // 2
 
     cdef int ki = 1
     cdef int v = 1
     # invariant v = sum([k_0,..,k_i))
     for i in range(1,d+1):
-        ki = (ki*array[i-1]) / array[d+i-1] # k_{i+1} = k_i*b_i /c_{i+1}
+        ki = (ki*array[i-1]) // array[d+i-1] # k_{i+1} = k_i*b_i /c_{i+1}
         v += ki
 
     return v
@@ -1651,6 +1731,9 @@ def intersection_array_from_classical_parameters( const int d,
 
         tbd
     """
+    if d < 3:
+        raise ValueError("we only deal with diameter > 2")
+    
     if b == 1:
         bs = [ d *beta ] #bs will be the list {b_0, ..., b_{d-1} }
     else:
@@ -1707,7 +1790,7 @@ def intersection_array_from_graph( G ):
         distance-regular.
     """
     t = G.is_distance_regular(True)
-    if not t:
+    if t is False:
         raise ValueError("the graph passed is not distance_regular")
     (b,c) = t
     # annoyingly b ends with None (b_d = 0)
@@ -1813,6 +1896,7 @@ def is_classical_parameters_graph( array ):
         return False
     
     return (d, b, alpha, beta)
+
 
 def intersection_array_of_pseudo_partition_graph(m,a):
     r"""
@@ -2407,7 +2491,7 @@ def near_polygon_graph(const int l, arr):
         if arr[2*d-1] != (2*d+2-n)*d:
             raise ValueError("no near polygon known with such intersection array")
         
-        return fold_graph(GraphGenerators.HammingGraph(n,2))
+        return GraphGenerators.FoldedCubeGraph(n)
 
     if k == d*(l+1) and n== 2*d and arr[d+1] == 2:
         #hamming graph
@@ -2441,7 +2525,7 @@ _infinite_families = [
     (is_from_association_scheme, graph_from_association_scheme),
     (is_from_GQ_spread, graph_from_GQ_spread),
     (is_generalised_symplectic_cover, generalised_symplectic_cover),
-    (is_from_BIBD, graph_from_BIBD),
+    (is_from_square_BIBD, graph_from_square_BIBD),
     (is_from_Denniston_arc, graph_from_Denniston_arc),
     (is_unitary_nonisotropic_graph, unitary_nonisotropic_graph),
     (is_Taylor_graph,Taylor_graph),
@@ -2499,6 +2583,7 @@ def distance_regular_graph( list arr, existence=False, check=True, debug=False )
     def is_feasible(array):
         try:
             parameters = drg.DRGParameters(array[:d],array[d:])
+            if debug: print("checking feasibility")
             parameters.check_feasible()
         except (InfeasibleError, AssertionError) as err:
             if debug: print("unfeasible")
@@ -2556,7 +2641,8 @@ def distance_regular_graph( list arr, existence=False, check=True, debug=False )
             if debug: print("found family {}".format(f))
             try:
                 G = g(*t) if is_iterable(t) else g(t)
-            except:
+            except Exception as exc:
+                if debug:print("Exception: {}".format(exc))
                 continue
             
             #here graph was built (may need to improve to avoid long times)

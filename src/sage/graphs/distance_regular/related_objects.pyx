@@ -13,6 +13,8 @@ from sage.libs.gap.libgap import libgap
 from sage.rings.integer cimport Integer
 from sage.combinat.designs.incidence_structures import IncidenceStructure
 
+from cysignals.signals cimport sig_check
+
 from sage.misc.unknown import Unknown
 
 #ASSOCIATION SCHEMES
@@ -164,9 +166,8 @@ class AssociationScheme:
 def cyclotomic_scheme(const int q,const int r,check=True):
     #for (q-1)/r even or q power of 2, then the association scheme is symmetric
     #and pseudocyclic
-
-    if (q-1)%r != 0:
-        raise ValueError("we need r to be a divisor of q-1")
+    if r <= 0 or (q-1)%r != 0:
+        raise ValueError("we need r to be a (positive) divisor of q-1")
 
     Fq = GF(q)
     X = list(Fq)
@@ -183,6 +184,7 @@ def cyclotomic_scheme(const int q,const int r,check=True):
         aiK = [ ai*x for x in K]
         for x in X:
             for z in aiK:
+                sig_check()
                 y = x+z
                 relations[XtoInt[x]][XtoInt[y]] = i
 
@@ -200,7 +202,7 @@ def pseudocyclic_association_scheme(const int n, const int r, existence=False, c
                 raise RuntimeError("Sage built a wrong association scheme")
         return scheme
     
-    if is_prime_power(n) and (n-1)%r == 0 and ( ((n-1)//r)%2 == 0 or n%2 == 0 ):
+    if is_prime_power(n) and r > 0 and (n-1)%r == 0 and ( ((n-1)//r)%2 == 0 or n%2 == 0 ):
         #we hve cyclotomic
         if existence: return True
         return result(cyclotomic_scheme(n,r,check))
