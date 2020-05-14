@@ -1136,7 +1136,6 @@ def graph_from_Denniston_arc(const int n):
         candidates = candidates.difference({a})
 
     irrCoef = candidates.pop()
-    #print("irr quadric: x^2+{}xy+y^2".format(irrCoef))
     def Q(x,y):
         return x*x+irrCoef*x*y+y*y
 
@@ -1849,6 +1848,8 @@ def is_classical_parameters_graph(list array):
     d = len(array) // 2
 
     #this may fail is array is very bad
+    #however, we did check in distance_regular_graph
+    #so it should not happen
     p = drg.DRGParameters(array[:d],array[d:])
     t = p.is_classical()
     
@@ -2054,7 +2055,7 @@ def is_pseudo_partition_graph( list arr ):
     elif gamma == 1:
         m = 2*d+1
     else:
-        return None
+        return False
 
     newArr = intersection_array_of_pseudo_partition_graph(m,a)
     if arr == newArr:
@@ -2085,8 +2086,6 @@ def is_near_polygon(list arr):
 
         if not is_prime_power(s*t):#this also rules out (1,1)
             return False
-
-        print("generalised {}-gon".format(2*d))
        
         if d == 3:
             if s == 1 or t == 1:
@@ -2146,12 +2145,9 @@ def is_near_polygon(list arr):
     if k < (l+1)*arr[2*d-1]:
         return False
 
-    print("we have a near polygon")
-
     #now find if we can build this graph
     n = 2*d if k == (l+1)*arr[2*d-1] else 2*d+1
     cs = arr[d:]
-    print("near {}-gon".format(n))
     
     #is generalised polygon?
     if is_generalised_2d_gon(arr,d):
@@ -2252,7 +2248,7 @@ def halve_graph(G) :
     H.name("Halved %s" % G.name() )
     return H
 
-def fold_graph( G ):
+def fold_graph( G, d=None,duplicate=True ):
     r"""
     Assume G is antipodal and computes its folded graph:
 
@@ -2264,37 +2260,32 @@ def fold_graph( G ):
     E_f = { (c_1,c_2) | \exists u \in c_1, v \in c_2 s.t. (u,v) \in E }
     """
 
-    def has_edge( c1, c2 ):
-        for u in c1:
-            for v in c2:
-                if G.has_edge(u,v) : return True
+    distance = G.distance_all_pairs()
 
-        return False
+    if d is None:
+        d= G.diameter()
 
-    #here we should check that G is antipodal
+    if duplicate:
+        H = G.copy()
+    else:
+        H = G
 
-    G_d = G.distance_graph(G.diameter())
-
-    cdef list cliques = []
-    cdef set vertices = set(G.vertices(sort=False))
+    #go through vertices
+    #if d(u,v) == d, then they are in a clique
+    #merge clique into 1 vertex
+    vertices = set(G.vertices(sort=False))
     while vertices:
         v = vertices.pop()
-        clique = frozenset(G_d.neighbors(v, closed=True))
-        cliques.append(clique)
+        clique = [v]
+        for u in vertices:
+            if distance[v][u] == d:
+                clique.append(u)
+        #now we have a clique
+        H.merge_vertices(clique)
         vertices = vertices.difference(clique)
-
-    cdef int n = len(cliques)
-    cdef list edges = []
-    for i in range(n):
-        c1 = cliques[i]
-        for j in range(i+1, n):
-            c2 = cliques[j]
-            #is there an edge (c1,c2)
-            if has_edge(c1,c2): edges.append( (c1,c2) )
-
-    F = Graph(edges, format='list_of_edges')
-    F.name("Fold of %s" % (G.name()) )
-    return F
+        
+    H.name("Fold of %s" % (G.name()) )
+    return H
 
 def bipartite_double_graph(G):
     r"""
@@ -2342,11 +2333,11 @@ def extended_biparitite_double_graph(G):
 def pseudo_partition_graph(m,a):
     r""" p 198"""
     if a == 0:
-        return fold_graph(GraphGenerators.HammingGraph(m,2))
+        return GraphGenerators.FoldedCubeGraph(m)
     elif a == 1:
-        return fold_graph(GraphGenerators.JohnsonGraph(2*m,m))
+        return fold_graph(GraphGenerators.JohnsonGraph(2*m,m),d=m,duplicate=False)
     elif a == 2:
-        return fold_graph(halved_cube(2*m))
+        return fold_graph(halved_cube(2*m),d=m,duplicate=False)
 
     raise ValueError("no known graph exists")
 
@@ -2356,8 +2347,6 @@ def near_polygon_graph(const int g, t):
 
     I NEED TO BE CAREFUL WITH ERRORS: invalid array or unknown graph????
     """
-    print("near polygon {} {}".format(g,t))
-    
     if g == 0:
         if t[0] == 3:
             return generalised_hexagon(t[1],t[2])
@@ -2468,27 +2457,12 @@ def distance_regular_graph( list arr, existence=False, check=True ):
         except TypeError:
             return False
 
-
-    #check that arr makes sense:
-    #even length; c_1 = 1; positive integer entries
     n = len(arr)
-    if n % 2 == 1:
-        if existence: return False
-        raise EmptySetError("intersection array must have even length")
     d = n // 2
-    if arr[d-1] != 1:
-        if existence: return False
-        raise EmptySetError("intersection array must have c_1 = 1")
-    
-    for x in arr:
-        r = Rational(x)
-        if r <= 0 or not r.is_integer():
-            if existence: return False
-            raise EmptySetError("intersection array must contain only positive integers")
-
+    #check that arr makes sense:
     try:
         parameters = drg.DRGParameters(arr[:d],arr[d:])
-    except AssertionError as err:
+    except (AssertionError, InfeasibleError, TypeError) as err:
         if existence: return False
         raise EmptySetError(
             "No distance-regular graphs with parameters {} exists; reason: {}".format(arr,err))

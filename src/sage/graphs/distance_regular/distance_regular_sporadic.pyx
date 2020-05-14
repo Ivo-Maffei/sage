@@ -35,11 +35,10 @@ include all sporadic (not part of a family) distance regular graphs
 """
 
 def cocliques_HoffmannSingleton():
-    from sage.graphs.cliquer import all_max_clique
     D = GraphGenerators.HoffmanSingletonGraph()
     DC = D.complement()
 
-    cocliques = all_max_clique(DC)#100 of this
+    cocliques = DC.cliques_maximum()#100 of this
 
     edges = []
     for i in range(100):
@@ -570,7 +569,6 @@ def LintSchrijver_graph():
 
 def Leonard_graph():
     from sage.combinat.matrices.hadamard_matrix import hadamard_matrix
-    from sage.graphs.cliquer import all_max_clique
 
     M = hadamard_matrix(12)
     edges = []
@@ -584,7 +582,7 @@ def Leonard_graph():
                         edges.append( ( (i,j),(k,l) ) )
 
     D = Graph(edges,format="list_of_edges")
-    cls = all_max_clique(D)
+    cls = D.cliques_maximum()
 
     edges = []
     for cl in cls:
