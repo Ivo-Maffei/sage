@@ -1802,44 +1802,6 @@ def intersection_array_from_graph( G ):
     # and c starts with None (c_0 = 0)
     # so trim these 2 values
     return b[:-1]+c[1:]
-
-def get_classical_parameters( list array ):
-    r"""
-    Return the classical parameters ``(d,b,alpha,beta)`` 
-    representing the intersection array.
-
-    This function will check whether given array is an itersection array 
-    that can be represented with classical parameters.
-
-    INPUT:
-
-    - ``array`` -- array of integers
-
-
-    OUTPUT:
-    
-    tuple ``(d,b,alpha,beta)`` of classical parameters for array if the array has classical parameters
-    False otherwise
-
-    EXAMPLES:
-
-        tbd
-
-    ALGORITHM:
-
-    This algorithm uses sage-drg    
-
-    TESTS::
-
-        tbd
-
-    """
-    
-    
-    #else t is a list of possible parameters
-    #we only need 1 since corollary 6.2.2
-    return t[0]
-    
     
 def is_classical_parameters_graph(list array):
     r"""
@@ -1886,16 +1848,14 @@ def is_classical_parameters_graph(list array):
     if len(array) % 2 != 0 : return False
     d = len(array) // 2
 
+    #this may fail is array is very bad
     p = drg.DRGParameters(array[:d],array[d:])
     t = p.is_classical()
-
+    
     if t is False:
         return False
 
     (d,b,alpha,beta) = t[0]
-    print("-----------------------------------------------")
-    print("parameters {}".format(t))
-
     gamma = None
     
     if b == 1 :
@@ -1926,7 +1886,6 @@ def is_classical_parameters_graph(list array):
             return False
 
     if gamma is not None:
-        print("gamma %d"%gamma)
         return (d,b,alpha,beta,gamma)
 
     #all remaining cases need b to be a prime power
@@ -1972,8 +1931,6 @@ def is_classical_parameters_graph(list array):
         gamma = 14
 
     if gamma is None: return False
-
-    print("gamma: %d"%gamma)
     return (d,b,alpha,beta,gamma)
 
 def graph_with_classical_parameters(const int d, const int b, alpha_in, beta_in, const int gamma):
@@ -2035,7 +1992,7 @@ def intersection_array_of_pseudo_partition_graph(m,a):
     m = 2*d or 2*d +1
     b_i = (m-i)(1 + a(m-1-i)) for i < d
     c_i = i(1+ a(i-1)) for i < d
-    b_d = 0; c_d = g*d(1+a(d-1)) where g = m % 2
+    b_d = 0; c_d = g*d(1+a(d-1)) where g =2 - m % 2
     """
     g = 2 - m% 2
     if g == 2:
@@ -2075,7 +2032,7 @@ def is_pseudo_partition_graph( list arr ):
     #m = 2*d or 2*d +1
     #b_i = (m-i)(1 + a(m-1-i)) for i < d
     #c_i = i(1+ a(i-1)) for i < d
-    #b_d = 0; c_d = g*d(1+a(d-1)) where g = m % 2
+    #b_d = 0; c_d = g*d(1+a(d-1)) where g = 2- m % 2
 
     #c_2 = 2 ( 1+a)
     c2 = arr[d+1]
@@ -2083,17 +2040,25 @@ def is_pseudo_partition_graph( list arr ):
         return False
     a = c2 // 2 -1
 
-    #try m = 2d
-    m = 2*d
+    if a not in {0,1,2}:#we don't know these graphs
+        return False
+
+    cd = arr[2*d-1]
+    K = d*(1+a*(d-1))
+    if cd%K != 0:
+        return False
+    gamma = cd //K
+
+    if gamma == 2:
+        m = 2*d
+    elif gamma == 1:
+        m = 2*d+1
+    else:
+        return None
 
     newArr = intersection_array_of_pseudo_partition_graph(m,a)
     if arr == newArr:
         return (m,a)
-    else:
-        m = m+1# m = 2*d +1
-        newArr = intersection_array_of_pseudo_partition_graph(m,a)
-        if arr == newArr:
-            return (m,a)
 
     return False
 
@@ -2107,31 +2072,123 @@ def is_near_polygon(list arr):
 
     In particular, if it is a near polygon, then is a near 2d-gon if k = (l+1)*c_d and a near (2d+1)-gon otherwise
     """
+    def is_generalised_2d_gon(a,d):
+        #c_1,...,c_{d-1} = 1
+        for i in range(1,d):
+            if a[d+i-1] != 1: return False
+
+        t = a[2*d-1] -1 #c_d-1
+        
+        # b_0 = s(t+1)
+        if a[0] % (t+1) != 0: return False
+        s = a[0] // (t+1)
+
+        if not is_prime_power(s*t):#this also rules out (1,1)
+            return False
+
+        print("generalised {}-gon".format(2*d))
+       
+        if d == 3:
+            if s == 1 or t == 1:
+                #order (1,q) or (q,1)
+                return True
+            elif s == t and s in {2,3,4,5}:
+                #order (q,q)
+                return True
+            elif (s==t**3 or t == s**3) and s*t in {16,81}:
+                #order (q,q^3) or (q^3,q); q is 2 or 3
+                return True
+            return False
+        elif d == 4:
+            if s== 1 or t == 1:
+                #order (1,q) or (q,1)
+                q= s*t
+                if strongly_regular_graph((q+1)*(q*q+1),q*(q+1),q-1,q+1,existence=True):
+                    return True
+            elif s==t*t or s*s == t and s*t == 8:
+                #order (q,q^2) we can only do q=2
+                return True
+            return False
+        elif d == 6:
+            if (s==1 or t == 1) and s*t in {2,3,4,5}:
+                #order (1,q); rely on hexagon (q,q)
+                return True
+        
+        return False
+
+    #gamma indicates what graph we have
+    # gamma -> graph
+    #   0   -> gen polygon
+    #   1   -> polygon
+    #   2   -> Odd graph
+    #   3   -> 2xGrassmann
+    #   4   -> 2xodd
+    #   5   -> folded cube
 
     d = len(arr)
     if d % 2 != 0:
         return False
 
     d = d // 2
-    
-    if arr[d] != 1: #c_1 = 1 ALWAYS
+    if d < 3:
         return False
-
+    
     k = arr[0]
-    l = (k - arr[1]) - 1
+    l = k - arr[1] - 1#b_i = k -(\l+1)
+    if l < 0: return False
     
     #for i = 0 we have b_0 = k - (l+1)*c_0 = k since c_0 = 0 always
-    # we check i = 1 since in our expression for l we use integer division
     for i in range(1,d):
         if arr[i] != k - (l+1)*arr[d+i-1]: #b_i = k - (l+1)c_i
             return False
 
-    #finally chek k >= (l+1)c_d
+    #chek k >= (l+1)c_d
     if k < (l+1)*arr[2*d-1]:
         return False
+
+    print("we have a near polygon")
+
+    #now find if we can build this graph
+    n = 2*d if k == (l+1)*arr[2*d-1] else 2*d+1
+    cs = arr[d:]
+    print("near {}-gon".format(n))
     
-    #if we get here we passed the test
-    return (l,arr)
+    #is generalised polygon?
+    if is_generalised_2d_gon(arr,d):
+        t = arr[2*d-1]-1
+        s = arr[0]//(t+1)
+        return (0,(d,s,t))
+    
+    if l != 0: return False#classial parameters; don't deal it here
+
+    #now l==0
+    if k== 2 and cs == ([1 for i in range(1,d)]+[2*d+2-n]):
+        #polygon
+        return (1,n)
+
+    if n == 2*d+1 and k == d+1 and cs == [(i+1)//2 for i in range(1,d+1)]:
+        #odd graph
+        return (2,d+1)
+
+    if ( n == 2*d and d%2 == 1 and is_prime_power(cs[2]-1) and
+         k == q_binomial((d-1)//2+1, 1,cs[2]-1) and#cs[2]=c_3 = q_binom(2,1,q) = q+1
+         cs == [ q_binomial((i+1)//2,1,cs[2]-1) for i in range(1,d+1)]):
+        #double grassman
+        e = (d-1)//2
+        q = cs[2]-1
+        return (3,(q,e))
+
+    if ( n==2*d and d%2 == 1 and k -1 == (d-1)//2 and
+         cs == [(i+1)//2 for i in range(1,d+1)] ):
+        #doubled odd
+        e = (d-1)//2
+        return (4,e)
+    
+    if k == n and cs == ([i for i in range(1,d)]+[d*(2*d+2-n)]):
+        #Folded cube
+        return (5,n)
+    
+    return False
 
 def intersection_array_2d_gon(d, s, t):
     b = [0]*d
@@ -2177,27 +2234,22 @@ def halve_graph(G) :
 
     TESTS::
     """
-    
-    if not G.is_bipartite():
-        raise ValueError(
-            "The input graph is not bipartite")
-    
     H = GraphGenerators.EmptyGraph()
     queue = [G.vertices()[0]] # queue of vertex to follow
     H.add_vertex(G.vertices()[0])
     while queue:
         v = queue.pop(0)
         close = G.neighbors(v,sort=False)
-        candidate = [ x for c in close for x in G.neighbors(c,sort=False) ]# flatten map G.neighbors(_) close
+        #compute all neighbours of the neighbours
+        candidate = set([ x for c in close for x in G.neighbors(c,sort=False) ])
         for w in candidate:
-            if G.distance(v,w) == 2:
+            if not G.has_edge(v,w):#then d(v,w)==2
                 if w not in H:
                      queue.append(w)
                      H.add_vertex(w)
                 H.add_edge(v,w)
 
     H.name("Halved %s" % G.name() )
-    
     return H
 
 def fold_graph( G ):
@@ -2223,13 +2275,6 @@ def fold_graph( G ):
 
     G_d = G.distance_graph(G.diameter())
 
-    # to create the vertex set:
-    # make a list of sets; each set a singleto containing a vertex of G
-    # iterate through the list
-    # for each singleton set, add to that sets all neighbours of its element in G_d
-    # (like a disjoint set forest)
-    # since G_d is a union of disjoint cliques all nodes in a set are a maximal clique
-    # atm we have a sillier implementation
     cdef list cliques = []
     cdef set vertices = set(G.vertices(sort=False))
     while vertices:
@@ -2303,138 +2348,37 @@ def pseudo_partition_graph(m,a):
     elif a == 2:
         return fold_graph(halved_cube(2*m))
 
-    if m >= 8:
-        raise ValueError("no graph with m >=8 and a \notin {0,1,2} exists")
-
     raise ValueError("no known graph exists")
 
-def near_polygon_graph(const int l, arr):
+def near_polygon_graph(const int g, t):
     r"""
     Returns a dist reg graph which is a near polygon with the given intersection array
 
     I NEED TO BE CAREFUL WITH ERRORS: invalid array or unknown graph????
     """
-    def is_generalised_2d_gon(a,d):
-        #c_1,...,c_{d-1} = 1
-        for i in range(1,d):
-            if a[d+i-1] != 1: return False
-
-        t = a[2*d-1] -1 #c_d-1
-        
-        # b_0 = s(t+1)
-        if a[0] % (t+1) != 0: return False
-        s = a[0] // (t+1)
-
-        #b_i = st
-        for i in range(1,d):
-            if a[i] != s*t: return False
-
-        #otherwise we have it
-        return (s,t)
-
-    d = len(arr)
-    d = d // 2
-    if d < 3:
-        raise ValueError("we only handle diameter >= 3")
-
-    pair = is_generalised_2d_gon(arr,d)
-    if pair is not False:
-        if d == 3:
-            return generalised_hexagon(*pair)
-        elif d == 4:
-            return generalised_octagon(*pair)
-        elif d == 6:
-            return generalised_dodecagon(*pair)
-
-    k = arr[0]
-
-    if k == (l+1)*arr[2*d-1]:
-        n = 2*d
-    else:
-        n = 2*d +1
-
-    if k == 2 and l == 0:
-        #polygon, but still check c_i's
-        for i in range(1,d):
-            if arr[d-1+i] != 1:
-                raise ValueError("no near polygon known with such intersection array")
-        if arr[2*d-1] != 2*d+2 - n : #c_d = \gamma = 1 if n odd and 2 if n even
-            raise ValueError("no near polygon known with such intersection array")
-
-        return GraphGenerators.CycleGraph(n)
-
-    if l == 0 and k == d+1 and n == 2*d +1:
-        #odd graph
-        #still check c_i's
-        for i in range(1,d+1):
-            #c_{2j} = j
-            #c_{2j -1} = j
-            #so c_i = (i+1) // 2
-            if arr[d-1+i] != (i+1) // 2:
-                raise ValueError("no near polygon known with such intersection array")
-
-        #what I call Odd(n) is Odd(n+1) in Sage
-        return GraphGenerators.OddGraph(d+1)
-    if l == 0 and n == 2*d:
-        #R3 (double grassman or odd)
-        if d % 2 == 0:
-            raise ValueError("no near polygon known with such intersection array")
-        e = (d-1) // 2
-        if k == e+1:
-            #double odd
-            #c_i need to satisfies the same as above
-            for i in range(1,d+1):
-                if arr[d-1+i] != (i+1) // 2:
-                    break #not double odd
-            else:# we have double odd
-                #I postulate that doubled_odd_graph(x) has diameter 2*x +1
-                #I should prove it
-                return doubled_odd_graph(e)
-        
-        #we have double grassman (since it is not double odd)
-        #k = q_binomial(e+1,1,q) for some prime power q
-        #c_j = q_binomail( (j+1)//2, 1, q)
-        #so c_3 = q_binomial( 2,1,q) = q+1
-        #we need d >= 3
-        q = arr[d-1+3] -1
-        if not is_prime_power(q) or k != q_binomial(e+1,1,q):
-            raise ValueError("no near polygon known with such intersection array")
-
-        #now check c_i's
-        for i in range(1,d+1):
-            if arr[d-1+i] != q_binomial( (i+1)//2, 1,q):
-                raise ValueError("no near polygon known with such intersection array")
-        #note that the diameter of the double grassman graph (q',n',e')
-        #is n'
-        return doubled_Grassmann_graph(q,e)
-
-    if k == n and l == 0:
-        #folded cube
-        for i in range(1,d):
-            if arr[d-1+i] != i:
-                raise ValueError("no near polygon known with such intersection array")
-        if arr[2*d-1] != (2*d+2-n)*d:
-            raise ValueError("no near polygon known with such intersection array")
-        
-        return GraphGenerators.FoldedCubeGraph(n)
-
-    if k == d*(l+1) and n== 2*d and arr[d+1] == 2:
-        #hamming graph
-        for i in range(1,d+1):
-            if arr[d-1+i] != i:
-                raise ValueError("no near polygon known with such intersection array")
-        return GraphGenerators.HammingGraph(d,l+2)
-
-    #if dual polar, then
-    q = arr[d+1]-1 #c2 = q+1
-    if k == (l+1)*(q**d -1)//(q-1) and n == 2*d:
-        #dual polar graph
-        t = is_classical_parameters_graph(arr)
-        if t is False:
-            raise ValueError("no near polygon known with such intersection array")
-        return graph_with_classical_parameters(*t)
+    print("near polygon {} {}".format(g,t))
     
-    raise ValueError("no near polygon known with such intersection array")
+    if g == 0:
+        if t[0] == 3:
+            return generalised_hexagon(t[1],t[2])
+        if t[0] == 4:
+            return generalised_octagon(t[1],t[2])
+        if t[0] == 6:
+            return generalised_dodecagon(t[1],t[2])
+        
+    if g == 1:
+        return GraphGenerators.CycleGraph(t)
+    if g == 2:
+        return GraphGenerators.OddGraph(t)
+    if g == 3:
+        return doubled_Grassmann_graph(*t)
+    if g == 4:
+        return doubled_odd_graph(t)
+    if g == 5:
+        return GraphGenerators.FoldedCubeGraph(t)
+
+    raise ValueError(
+            "{} {} is an incorrect input; use the function distance_regular_graph".format(g,t))
 
 #list of pairs (f,g) s.t.
 #if f(array) is not False, then g(*f(array)) should be a graph with the given intersection array
@@ -2506,19 +2450,9 @@ _sporadic_graph_database = {
     (21,20,16,1,2,12): doubly_truncated_binary_Golay_code_graph,
 }
 
-def distance_regular_graph( list arr, existence=False, check=True, debug=False ):
+def distance_regular_graph( list arr, existence=False, check=True ):
     import drg
     from drg import InfeasibleError
-
-    def is_feasible(array):
-        try:
-            parameters = drg.DRGParameters(array[:d],array[d:])
-            if debug: print("checking feasibility")
-            parameters.check_feasible()
-        except (InfeasibleError, AssertionError) as err:
-            if debug: print("unfeasible")
-            return err
-        return True
 
     def result(G):
         if check:
@@ -2535,19 +2469,31 @@ def distance_regular_graph( list arr, existence=False, check=True, debug=False )
             return False
 
 
-    #check that arr makes sense
+    #check that arr makes sense:
+    #even length; c_1 = 1; positive integer entries
     n = len(arr)
     if n % 2 == 1:
         if existence: return False
         raise EmptySetError("intersection array must have even length")
     d = n // 2
-
+    if arr[d-1] != 1:
+        if existence: return False
+        raise EmptySetError("intersection array must have c_1 = 1")
+    
     for x in arr:
         r = Rational(x)
         if r <= 0 or not r.is_integer():
             if existence: return False
             raise EmptySetError("intersection array must contain only positive integers")
-    
+
+    try:
+        parameters = drg.DRGParameters(arr[:d],arr[d:])
+    except AssertionError as err:
+        if existence: return False
+        raise EmptySetError(
+            "No distance-regular graphs with parameters {} exists; reason: {}".format(arr,err))
+
+    #handle diameter < 3
     if d == 1 and arr[1] == 1:
         if existence: return True
         return result(GraphGenerators.CompleteGraph(arr[0]+1))
@@ -2561,29 +2507,22 @@ def distance_regular_graph( list arr, existence=False, check=True, debug=False )
 
     t = tuple(arr)
     if t in _sporadic_graph_database:
-        if debug: print("in sporadic database")
         if existence: return True
         return result(_sporadic_graph_database[t]())
 
     for (f,g) in _infinite_families:
         t = f(arr)
         if t is not False:
-            if debug: print("found family {}".format(f))
-            try:
-                G = g(*t) if is_iterable(t) else g(t)
-            except Exception as exc:
-                if debug:print("Exception: {}".format(exc))
-                continue
-            
-            #here graph was built (may need to improve to avoid long times)
             if existence: return True
+            
+            G = g(*t) if is_iterable(t) else g(t)
             return result(G)
 
-
-    feasible = is_feasible(arr)
-    if feasible is not True:
-        if existence:
-            return False
+    #now try drg feasibility
+    try:
+        parameters.check_feasible()
+    except (InfeasibleError, TypeError, AssertionError) as err:
+        if existence: return False
         raise EmptySetError(
             "no distance-regular graph with intersection array {} exists; reason: {}".format(arr,feasible))
     
