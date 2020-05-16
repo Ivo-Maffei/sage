@@ -118,9 +118,10 @@ def dual_polar_orthogonal(const int e, const int  d, const int q):
     if K.dimension() < d:
         V = VectorSpace(GF(q),m)
         candidates = set(map(hashable,[P.basis()[0] for P in V.subspaces(1)]))
+        hashableK = map(hashable, [P.basis()[0] for P in K.subspaces(1)])
+        candidates = candidates.difference(hashableK) #remove all isotropic vectors in K
+        nonZeroScalars = [ x for x in GF(q) if not  x.is_zero() ]
         while K.dimension() < d:
-            hashableK = set(map(hashable, [P.basis()[0] for P in K.subspaces(1)]))
-            candidates = candidates.difference(hashableK) #remove all isotropic vectors in K
             assert( candidates, "no candidate but K.dim < d")
             found = False
             while not found:
@@ -136,6 +137,9 @@ def dual_polar_orthogonal(const int e, const int  d, const int q):
                             break
             #while found
             isotropicBasis.append(v)
+            #remove new points of K
+            newVectors = map(hashable,[ k+l*v for k in K for l in nonZeroScalars ])
+            candidates.difference(newVectors)
             K = V.span(isotropicBasis)
         #while K.dimension
 
@@ -1142,11 +1146,12 @@ def graph_from_Denniston_arc(const int n):
     PG = Sage_Designs.ProjectiveGeometryDesign(2,1,q) #projective plane PG(2,q)
     #the points are represented as vectors with homogenous coordinates (first non-zero entry is 1)
 
-    arc = set() #complete arc                
-    for v in PG.ground_set():
-        sig_check()
-        if v[0] == 1 and Q(v[1],v[2]) in Fn:
-            arc.add(v)
+    arc = set() #complete arc
+    for x in elemsFq:
+        for y in elemsFq:
+            sig_check()
+            if Q(x,y) in Fn:
+                arc.add(vector(Fq,[1,x,y],immutable=True))
 
     #pick all lines intersecting arc in n points (so any line intersecting the arc)
     #remove all points in arc
@@ -1154,8 +1159,8 @@ def graph_from_Denniston_arc(const int n):
     for b in PG.blocks():
         sb = Set(b)
         for p in b:
+            sig_check()
             if p in arc:
-                sig_check()
                 newLine = sb.difference(arc)
                 lines.append(newLine)
                 break
@@ -2235,9 +2240,8 @@ def halve_graph(G) :
     H.add_vertex(G.vertices()[0])
     while queue:
         v = queue.pop(0)
-        close = G.neighbors(v,sort=False)
         #compute all neighbours of the neighbours
-        candidate = set([ x for c in close for x in G.neighbors(c,sort=False) ])
+        candidate = set([ x for c in G.neighbors(v,sort=False) for x in G.neighbors(c,sort=False) ])
         for w in candidate:
             if not G.has_edge(v,w):#then d(v,w)==2
                 if w not in H:
@@ -2376,7 +2380,7 @@ _infinite_families = [
     (is_pseudo_partition_graph, pseudo_partition_graph),
     (is_near_polygon, near_polygon_graph),
     (is_hermitean_cover, hermitean_cover),
-    (is_AB_graph, AB_graph),
+    (is_AB_graph, AB_graph),#this should be before Kasami graph for better performance
     (is_Preparata_graph, Preparata_graph),
     (is_Brouwer_Pasechnik_graph, Brouwer_Pasechnik_graph),
     (is_Pasechnik_graph, Pasechnik_graph),

@@ -223,7 +223,7 @@ def generalised_quadrangle_with_spread(const int s, const int t, existence=False
 
     if is_prime_power(s) and t == s*s:
         if existence: return True
-        (GQ,S) = dual_GQ_ovoid(*generalised_quadrangle_hermitean(s))
+        (GQ,S) = dual_GQ_ovoid(*generalised_quadrangle_hermitian(s))
         if check:
             if not is_GQ_with_spread(GQ,S,s,t):
                 raise RuntimeError("Sage built a wrong GQ with spread")
@@ -266,7 +266,7 @@ def dual_GQ_ovoid(GQ,O):
     D = IncidenceStructure(newBlocks)
     return (D,S)
     
-def generalised_quadrangle_hermitean(const int q):
+def generalised_quadrangle_hermitian(const int q):
     r"""
     Another way of making H(3,q^2)
     GQ of order (q^2,q)
@@ -284,7 +284,7 @@ def generalised_quadrangle_hermitean(const int q):
 
     points = list(libgap.Orbit(GU,e1,libgap.OnLines)) #all isotropic points
     pointInt = { x:(i+1) for i,x in enumerate(points) } #+1 because GAP starts at 1
-    #points is the hermitean variety
+    #points is the hermitian variety
 
     GUp = libgap.Action(GU, points, libgap.OnLines)#GU as permutation group of points
 
@@ -295,7 +295,6 @@ def generalised_quadrangle_hermitean(const int q):
     line = libgap.Set([ pointInt[p] for p in lineAsPoints ])
 
     lines = libgap.Orbit(GUp, line, libgap.OnSets)#all isotropic lines
-    #print(len(lines))
 
     #to find ovoid, we embed H(3,q^2) in H(4,q^2)
     #then embedding is (a,b,c,d) -> (a,b,0,c,d) [so we preserve isotropicity]
@@ -308,8 +307,7 @@ def generalised_quadrangle_hermitean(const int q):
         (p,k) = is_prime_power(q,get_data=True)
         a = (p-1)// 2
         aGap = zero
-        for i in range(a):
-            aGap += one
+        for i in range(a): aGap += one
         p = [zero,one,one,aGap,zero]
     else:
         a = libgap.Z(q*q)**(q-1)
