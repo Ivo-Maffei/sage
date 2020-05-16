@@ -1196,38 +1196,33 @@ def unitary_nonisotropic_graph(const int q):
         raise ValueError("q must be greater than 2")
     if not is_prime_power(q):
         raise ValueError("q must be a prime power")
-    
-    #hermitean form
-    def h(u,v):
-        w = [ x**q for x in v]#conjugate of v
-        return u[0]*w[0]+u[1]*w[1]+u[2]*w[2]
 
-    r = q*q
-    V = VectorSpace(GF(r),3)
 
-    vertices = [] #projective points that are nonisotropic
-    for P in V.subspaces(1):
-        sig_check()
-        v = P.basis()[0]
-        if h(v,v) != 0:
-            vertices.append(v)
+    GU = libgap.GU(3,q)
+    Fr = libgap.GF(q*q)
+    one = libgap.One(Fr)
+    zero = libgap.Zero(Fr)
+    ev = [one,one,zero]
+    w = [zero,one,-one]
 
-    for v in vertices:
-        sig_check()
-        v.set_immutable()
+    vertices = libgap.Orbit(GU,ev,libgap.OnLines)
+    PGU = libgap.Action(GU,vertices,libgap.OnLines)
 
-    n = len(vertices)
-    edges = []
-    for i in range(n):
-        v = vertices[i]
-        for j in range(i+1,n):
-            sig_check()
-            w = vertices[j]
-            if h(v,w) == 0:
-                edges.append((v,w))
+    evPos = -1
+    wPos = -1
+    for i,v in enumerate(vertices):
+        if v == ev:
+            evPos = i+1
+        if v == w:
+            wPos = i+1
+
+        if evPos != -1 and wPos != -1:
+            break
+
+    edges = libgap.Orbit(PGU, libgap.Set([evPos,wPos]), libgap.OnSets)
 
     G = Graph(edges,format="list_of_edges")
-    G.name("Unitary nonisotropic graph on (F_%d)^3"%r)
+    G.name("Unitary nonisotropic graph on (F_%d)^3"%(q*q))
     return G
 
 def is_Taylor_graph(list arr):
