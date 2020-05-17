@@ -320,11 +320,11 @@ def alternating_form_graph(const int n, const int q):
     G.name("Alternating form graph on (F_%d)^%d" %(q,n) )
     return G    
 
-def hermitean_form_graph(const int n, const int q):
+def hermitian_form_graph(const int n, const int q):
     r"""
-    Return the Hermitean from graph with the given parameters.
+    Return the Hermitian from graph with the given parameters.
 
-    We build a graph whose vertices are all ``n``x``n`` Hermitean matrices
+    We build a graph whose vertices are all ``n``x``n`` Hermitian matrices
     over ``GF(q)``. 2 vertices are adjecent if the difference of the 2 vertices
     has rank 1. We need ``q``=``r**2`` for some prime power ``r``
 
@@ -337,7 +337,7 @@ def hermitean_form_graph(const int n, const int q):
 
     EXAMPLES:
 
-        sage: g = hermitean_form_graph(5,2)
+        sage: g = hermitian_form_graph(5,2)
         sage: g.is_distance_regular()
         True
 
@@ -361,17 +361,17 @@ def hermitean_form_graph(const int n, const int q):
 
     def symmetry(x): return x**r
 
-    hermiteanMatrices = MS.symmetric_generator(symmetry)
+    hermitianMatrices = MS.symmetric_generator(symmetry)
 
     rank1Matrices = []
-    for mat in hermiteanMatrices:
+    for mat in hermitianMatrices:
         sig_check()
         if mat.rank() == 1: rank1Matrices.append(mat)
 
     #refresh generatro
-    hermiteanMatrices = MS.symmetric_generator(symmetry)
+    hermitianMatrices = MS.symmetric_generator(symmetry)
     edges = []
-    for mat in hermiteanMatrices:
+    for mat in hermitianMatrices:
         mat.set_immutable()
         for mat2 in rank1Matrices:
             sig_check()
@@ -381,7 +381,7 @@ def hermitean_form_graph(const int n, const int q):
             edges.append( (mat, mat3) )
 
     G = Graph(edges, format='list_of_edges')
-    G.name("Hermitean form graph on (F_%d)^%d" %(q,n) )
+    G.name("Hermitian form graph on (F_%d)^%d" %(q,n) )
     return G
         
 def halved_cube( int n ):
@@ -508,10 +508,10 @@ def doubled_Grassmann_graph(const int q, const int e):
 ################################################################################
 # UNBOUNDED ORDER
 
-def is_hermitean_cover(list arr):
+def is_hermitian_cover(list arr):
     r"""
     Given an intersection array it return (q,r)
-    such that hermitean_cover(q,r) is a graph with the given intersection
+    such that hermitian_cover(q,r) is a graph with the given intersection
     array. If no (q,r) exists, then it returns False
     """
     if len(arr) != 6:
@@ -553,7 +553,7 @@ def is_hermitean_cover(list arr):
     
     return False
 
-def hermitean_cover(const int q,const int r):
+def hermitian_cover(const int q,const int r):
     r"""
     Implent an antipodal $r$-cover of $K_{q^3+1}$ 
     using the construction due to Cameron ...
@@ -1831,7 +1831,7 @@ def is_classical_parameters_graph(list array):
     #  1   -> Hamming
     #  2   -> Halved cube
     #  3   -> UnitaryDualPolarGraph 2d, -b
-    #  4   -> hermitean form
+    #  4   -> hermitian form
     #  5   -> gen hexagon
     #  6   -> Grassmann
     #  7   -> Dual Polar Orthogonal e=1
@@ -1913,10 +1913,10 @@ def is_classical_parameters_graph(list array):
         else:
             if k%2 == 1: return False#we need b a square
             if beta == r**3:
-                #hermitean form
+                #hermitian form
                 gamma = 10
             elif beta == r:
-                #other hermitean form
+                #other hermitian form
                 gamma = 11
     elif ( k%2 == 0 and alpha + 1 == q_binomial(3, 1, r)
            and beta + 1 in { q_binomial(2*d+2, 1, r),
@@ -1953,7 +1953,7 @@ def graph_with_classical_parameters(const int d, const int b, alpha_in, beta_in,
     elif gamma == 3:
         return GraphGenerators.UnitaryDualPolarGraph(2*d,-b)
     elif gamma == 4:
-        return hermitean_form_graph(d,(-b)**2)
+        return hermitian_form_graph(d,(-b)**2)
     elif gamma == 5:
         q = -b
         return generalised_hexagon(q,q**3)
@@ -2374,7 +2374,7 @@ _infinite_families = [
     (is_classical_parameters_graph, graph_with_classical_parameters),
     (is_pseudo_partition_graph, pseudo_partition_graph),
     (is_near_polygon, near_polygon_graph),
-    (is_hermitean_cover, hermitean_cover),
+    (is_hermitian_cover, hermitian_cover),
     (is_AB_graph, AB_graph),#this should be before Kasami graph for better performance
     (is_Preparata_graph, Preparata_graph),
     (is_Brouwer_Pasechnik_graph, Brouwer_Pasechnik_graph),

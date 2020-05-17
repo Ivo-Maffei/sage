@@ -16,13 +16,15 @@ def coset_graph( const int q, C_basis, U_basis = None, n = None ):
     if n == None:
         n = len(C_basis[0])# dim V
     F = GF(q) #base field
+    V = VectorSpace(F,n)
 
-    if U_basis == None:
-        V = VectorSpace(F,n)
+    if U_basis is None:
         C = V.span(C_basis)
-        Q = V.quotient(C)
-        lift = Q.lift_map()
-        U_basis = [ lift(v) for v in Q.basis() ]
+        U = C.complement()
+        U_basis = U.basis()
+    else:
+        U = V.span(U_basis)
+        
 
     lambdas = [ x for x in F if x != 0 ]#non-zero elements of F
     
@@ -30,9 +32,6 @@ def coset_graph( const int q, C_basis, U_basis = None, n = None ):
         v = [0]*n
         v[i-1] = 1
         return vector(F,v)
-
-    V = VectorSpace(F,n)
-    U = V.span(U_basis)
 
     vertices = list(U)
 
@@ -47,11 +46,11 @@ def coset_graph( const int q, C_basis, U_basis = None, n = None ):
 
     Ainv = A.inverse()
 
-    ui = [] #list of P(e_i)
+    Pei = [] #list of P(e_i)
     for i in range(n+1):
         ei = e(i)
         if ei in U_basis:
-            ui.append(ei)
+            Pei.append(ei)
         else:
             a = Ainv * ei
             # get zero vector and sum a[i]u_i to it
@@ -59,16 +58,17 @@ def coset_graph( const int q, C_basis, U_basis = None, n = None ):
             v = vector(F,v)
             for i in range(len(U_basis)):
                 v += a[i]*U_basis[i]
-            ui.append(v)
+            Pei.append(v)
+
+    lPei = [ l*u for l in lambdas for u in Pei]
 
     #now we are ready to build all the edges
     edges = []
     for v in vertices:
         vt = tuple(v)
-        for x in ui:
-            for l in lambdas:
-                w = v+ l* x
-                edges.append( (vt, tuple(w)) )
+        for u in lPei:
+            w = v + u
+            edges.append( (vt, tuple(w)) )
 
     G = Graph(edges, format='list_of_edges')
     return G
