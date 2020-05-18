@@ -1480,6 +1480,7 @@ def extract_lines( G ):
 def line_graph_generalised_polygon(H):
     lines = extract_lines(H)
 
+    #get a map point -> all lines incident to point
     vToLines = { v : [] for v in H.vertices(sort=False) }
     for l in lines:
         for p in l:
@@ -1528,18 +1529,14 @@ def generalised_hexagon( const int s, const int t):
 
     if orderType == 0:
         #incident graph of generalised 3-gon of order (q,q)
-        V = VectorSpace(GF(q),3) #generalised triangle
-        points = list(V.subspaces(1))
-        lines = list(V.subspaces(2))
+        PG2 = Sage_Designs.ProjectiveGeometryDesign(2,1,q)
 
         edges = []
-        for p in points:
-            pb = p.basis_matrix()
-            for l in lines:
-                if p.is_subspace(l):
-                    sig_check()
-                    edges.append( (pb, l.basis_matrix()) )
-
+        for l in PG2.blocks():
+            for p in l:
+                sig_check()
+                edges.append( (p, frozenset(l)) )
+                    
         G = Graph(edges, format='list_of_edges')
         G.name("Generalised hexagon of order (1,%d)"%q)
         return G
@@ -1568,16 +1565,18 @@ def generalised_hexagon( const int s, const int t):
             G = Graph(group.Orbit([1,52], libgap.OnSets), format='list_of_edges')
             G.name("Generealised hexagon of order (%d,%d)"%(q,q))
             return G
-        else:
+        elif q <= 5:
             arr = intersection_array_2d_gon(3,s,t)
             n = number_of_vertices_from_intersection_array(arr)
             G = graph_from_permutation_group( libgap.AtlasGroup("G2(%d)"%q, libgap.NrMovedPoints, n), arr[0])
             G.name("Generalised hexagon of order (%d,%d)"%(q,q))
             return G
-        pass
+        else:
+            raise NotImplementedError("graph would be too big")
+        
     elif orderType == 3:
         if q> 3: raise ValueError("graph is too big")
-        movedPoints = 819 if q==2 else 26527
+        movedPoints = 819 if q==2 else 26572
         group = libgap.AtlasGroup("3D4(%d)"%q,libgap.NrMovedPoints,movedPoints)
         G = Graph(group.Orbit([1,2],libgap.OnSets), format='list_of_edges')
         G.name("Generalised hexagon of order (%d,%d)"%(q,q**3))

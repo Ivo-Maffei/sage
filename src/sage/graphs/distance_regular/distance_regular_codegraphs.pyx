@@ -49,7 +49,7 @@ def coset_graph( const int q, C_basis, U_basis = None, n = None ):
     Pei = [] #list of P(e_i)
     for i in range(n+1):
         ei = e(i)
-        if ei in U_basis:
+        if ei in U:
             Pei.append(ei)
         else:
             a = Ainv * ei

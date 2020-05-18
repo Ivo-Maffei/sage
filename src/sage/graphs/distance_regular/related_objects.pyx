@@ -335,6 +335,16 @@ def extended_Kasami_code(const int s, const int t):
     F2 = GF(2)
     V = VectorSpace(F2, s)
     elemsFs = [x for x in GF(s)]
+
+    #we ensure that 0 is the first element of elemsFs
+    if not elemsFs[0].is_zero():
+        for i in range(s):
+            if elemsFs[i].is_zero:
+                a = elemsFs[0]
+                elemsFs[0] = elemsFs[i]
+                elemsFs[i] = a
+                break
+    
     FsToInt = { x : i for i,x in enumerate(elemsFs)}
     elemsFsT = [x**(t+1) for x in elemsFs]
     FsTToInt = { x: i for i,x in enumerate(elemsFsT)}
@@ -349,7 +359,7 @@ def extended_Kasami_code(const int s, const int t):
         v[i] = 1
         v[s-1] = 1
         W1_basis.append(v)
-    W1 = V.span(W1_basis) #W satisfies \sum v[i] = 0
+    W1 = V.span(W1_basis) #W1 satisfies \sum v[i] = 0
 
     W2_basis = set([e1])#not really a basis...
     for i in range(1,s):#avoid x = 0
