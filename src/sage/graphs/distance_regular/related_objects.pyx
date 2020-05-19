@@ -310,7 +310,7 @@ def generalised_quadrangle_hermitian(const int q):
         for i in range(a): aGap += one
         p = [zero,one,one,aGap,zero]
     else:
-        a = libgap.Z(q*q)**(q-1)
+        a = libgap.PrimitiveRoot(Fq)**(q-1)
         p = [zero,one,a+one,a,zero]
         
     #now p is a point of H(4,q^2)
