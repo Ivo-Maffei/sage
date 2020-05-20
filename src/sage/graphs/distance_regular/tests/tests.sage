@@ -506,7 +506,7 @@ _tests_list = [
     #("Brouwer Pasechnik graph",Brouwer_Pasechnik_graph,Brouwer_Pasechnik_params,Brouwer_Pasechnik_array,Brouwer_Pasechnik_edges),
     #("Pasechnik graph",Pasechnik_graph,Pasechnik_params,Pasechnik_array,Pasechnik_edges),
     #("Association scheme graph",graph_from_association_scheme, association_scheme_params ,association_scheme_array, association_scheme_edges), #test primes > 100 and error in drg for (13,2)
-    ("GQ graphs",graph_from_GQ_spread, GQ_graph_params,GQ_graph_array,GQ_graph_edges),
+    #("GQ graphs",graph_from_GQ_spread, GQ_graph_params,GQ_graph_array,GQ_graph_edges),
     #("Symplectic cover", generalised_symplectic_cover, gen_symplectic_params, gen_symplectic_array, gen_symplectic_edges),
     #("BIBD graph", graph_from_BIBD, BIBD_graph_params, BIBD_graph_array, BIBD_graph_edges), #to test big ones
     #("Denniston graph", graph_from_Denniston_arc, Denniston_arc_params, Denniston_arc_array, Denniston_arc_edges),
@@ -516,7 +516,7 @@ _tests_list = [
     #("Generalised dodecagon",generalised_dodecagon, gen_dodec_params,gen_dodec_array),
     #("Generalised octagon",generalised_octagon, gen_octagon_params,gen_octagon_array),
     #("Generalised hexagon", generalised_hexagon, gen_hexagon_params, gen_hexagon_array),
-    #("Kasami graph",Kasami_graph,Kasami_params,Kasami_array,Kasami_edges),
+    ("Kasami graph",Kasami_graph,Kasami_params,Kasami_array,Kasami_edges),
     #("Extended Kasami graph",extended_Kasami_graph,Kasami_params,extended_Kasami_array,extended_Kasami_edges),
 ]
 
@@ -592,5 +592,5 @@ def test_random_array(n, drange, maxV ,silly=False):
                 
     print("terminated tests")
             
-test_all(True)
+test_all()
 #test_random_array(60,[3,4,5,6],30)

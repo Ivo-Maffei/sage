@@ -20,10 +20,11 @@ def coset_graph( const int q, C_basis, U_basis = None, n = None ):
 
     if U_basis is None:
         C = V.span(C_basis)
-        U = C.complement()
-        U_basis = U.basis()
-    else:
-        U = V.span(U_basis)
+        Q = V.quotient(C)
+        lift = Q.lift_map()#Q -> V
+        U_basis = [ lift(v) for v in Q.basis()]
+        
+    U = V.span(U_basis)
         
 
     lambdas = [ x for x in F if x != 0 ]#non-zero elements of F
