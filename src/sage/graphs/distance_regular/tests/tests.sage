@@ -9,7 +9,7 @@ from time import time
 from sage.parallel.decorate import fork
 
 timeLimit = 1200 #20 min
-edgeLimit = 1000000
+edgeLimit = 500000
 warning = "WARNING!!!!!!!!"
 prime_powers = [2,3,4,5,7,8,9,11,13,16,17,19,23,25]
 prime_powers_large = prime_powers + [27,29,31,32,37,41,43,47,49,53,59,61,64,67,71,73,79,81,83,89,97]
@@ -154,16 +154,16 @@ def alternating_form_edges(n,q):
     k = q_binomial(n//2,1,q)*(q**m-1)
     return k*nV // 2
 
-def hermitean_form_params():
+def hermitian_form_params():
     for n in range(3,10):
         for q in prime_powers:
             yield (n,q*q)
 
-def hermitean_form_array(n,q):
+def hermitian_form_array(n,q):
     r = sqrt(q)
     return intersection_array_from_classical_parameters(n, -r, -r-1, -(-r)**n-1)
     
-def hermitean_form_edges(n,q):
+def hermitian_form_edges(n,q):
     r = sqrt(q)
     nV = (n-1)*n // 2
     nV = (q**nV) * (r**n)
@@ -212,7 +212,7 @@ def doubled_Grassmann_edges(q,e):
     k= q_binomial(e+1,1,q)
     return k*nV//2
 
-def hermitean_cover_params():
+def hermitian_cover_params():
     for q in prime_powers:
         for r in (q*q -1).divisors()[1:]:#r==1 is complete graph
             if( (r%2 == 1 and (q-1)%r == 0) or
@@ -220,7 +220,7 @@ def hermitean_cover_params():
                 (q%2 == 1 and ((q+1)//2)%r == 0)):
                 yield (q,r)
 
-def hermitean_cover_array(q,r):
+def hermitian_cover_array(q,r):
     #diameter 3 r cover of K_{q^3+1}
     if r%2 == 1 and (q-1)%r == 0:
         mu = (q**3-1)//r
@@ -228,7 +228,7 @@ def hermitean_cover_array(q,r):
         mu = (q+1)*( (q**2-1)//r )
     return [q**3,(r-1)*mu,1,1,mu,q**3]
 
-def hermitean_cover_edges(q,r):
+def hermitian_cover_edges(q,r):
     nV = r*(q**3+1)
     return nV*q**3 // 2
 
@@ -287,7 +287,7 @@ def association_scheme_params():
     #this function should be updated
     for q in prime_powers_large:
         for r in (q-1).divisors()[1:]:#avoid r ==1, which is complete graph
-            if pseudocyclic_association_scheme(q,r,existence=True) is True:
+            if distance_regular_association_scheme(q,r,existence=True) is True:
                 yield(q,r)
 
 def association_scheme_array(q,r):
@@ -496,18 +496,18 @@ _tests_list = [
     #("doubled odd", doubled_odd_graph, doubled_odd_params, doubled_odd_array, doubled_odd_edges),
     #("bilinear form graph",bilinear_form_graph,bilinear_form_params,bilinear_form_array,bilinear_form_edges),
     #("alternating form graph",alternating_form_graph,alternating_form_params,alternating_form_array,alternating_form_edges), #to test
-    #("hermitean form graph",hermitean_form_graph,hermitean_form_params,hermitean_form_array,hermitean_form_edges),
+    #("hermitian form graph",hermitian_form_graph,hermitian_form_params,hermitian_form_array,hermitian_form_edges),
     #("halved cube",halved_cube,halved_cube_params,halved_cube_array,halved_cube_edges),
     #("Grassmann",Grassmann_graph,Grassmann_params,Grassmann_array,Grassmann_edges),
     #("doubled Grassmann",doubled_Grassmann_graph,doubled_Grassmann_params,doubled_Grassmann_array,doubled_Grassmann_edges),
-    #("hermitean cover",hermitean_cover,hermitean_cover_params,hermitean_cover_array,hermitean_cover_edges),
+    #("hermitian cover",hermitian_cover,hermitian_cover_params,hermitian_cover_array,hermitian_cover_edges),
     #("AB graph",AB_graph,AB_params,AB_array,AB_edges),
     #("Preparata graph", Preparata_graph,Preparata_params,Preparata_array,Preparata_edges),
     #("Brouwer Pasechnik graph",Brouwer_Pasechnik_graph,Brouwer_Pasechnik_params,Brouwer_Pasechnik_array,Brouwer_Pasechnik_edges),
     #("Pasechnik graph",Pasechnik_graph,Pasechnik_params,Pasechnik_array,Pasechnik_edges),
     #("Association scheme graph",graph_from_association_scheme, association_scheme_params ,association_scheme_array, association_scheme_edges), #test primes > 100 and error in drg for (13,2)
     #("GQ graphs",graph_from_GQ_spread, GQ_graph_params,GQ_graph_array,GQ_graph_edges),
-    #("Symplectic cover", generalised_symplectic_cover, gen_symplectic_params, gen_symplectic_array, gen_symplectic_edges),
+    #("Symplectic cover", symplectic_cover, gen_symplectic_params, gen_symplectic_array, gen_symplectic_edges),
     #("BIBD graph", graph_from_BIBD, BIBD_graph_params, BIBD_graph_array, BIBD_graph_edges), #to test big ones
     #("Denniston graph", graph_from_Denniston_arc, Denniston_arc_params, Denniston_arc_array, Denniston_arc_edges),
     #("unitary nonisotropic graph",unitary_nonisotropic_graph, unitary_graph_params, unitary_graph_array),
@@ -516,8 +516,8 @@ _tests_list = [
     #("Generalised dodecagon",generalised_dodecagon, gen_dodec_params,gen_dodec_array),
     #("Generalised octagon",generalised_octagon, gen_octagon_params,gen_octagon_array),
     #("Generalised hexagon", generalised_hexagon, gen_hexagon_params, gen_hexagon_array),
-    ("Kasami graph",Kasami_graph,Kasami_params,Kasami_array,Kasami_edges),
-    #("Extended Kasami graph",extended_Kasami_graph,Kasami_params,extended_Kasami_array,extended_Kasami_edges),
+    #("Kasami graph",Kasami_graph,Kasami_params,Kasami_array,Kasami_edges),
+    ("Extended Kasami graph",extended_Kasami_graph,Kasami_params,extended_Kasami_array,extended_Kasami_edges),
 ]
 
 def test_all(fromArray=False):
@@ -552,12 +552,12 @@ def test_all(fromArray=False):
     print("Tests passed {}, failed {}, total {}".format(totalOK, totalFail, totalOK+totalFail))
 
 
-def test_random_array(n, drange, maxV ,silly=False):
+def test_random_array(n, drange, maxV , noConstraints=False):
     #we generate n random arrays
     #they should have diameter in drange
-    #each entry in the array is <= maxV (use to sort of bound the graph size)
+    #each entry in the array is <= maxV (use to bound the graph size)
     #size of graph is < maxV * (maxV^d-1)/(maxV-1) / 2
-    #if silly is True, then arrays are completely random
+    #if noConstraints is True, then arrays are completely random
     #otherwise we ensure c_1 =1 and c[i] <= c[i+1]
     #and b[i] >= b[i+1] and a_i >=0
     from numpy.random import randint
@@ -566,7 +566,7 @@ def test_random_array(n, drange, maxV ,silly=False):
 
     for v in range(n):
         d = drange[ds[v]]
-        if silly:
+        if noConstraints:
             arr = list(randint(1,maxV,2*d))
         else:
             bs = [randint(1,maxV-1)]#we will increase b_0 by 1 later to ensure b_i < b_0
@@ -590,7 +590,7 @@ def test_random_array(n, drange, maxV ,silly=False):
             G = distance_regular_graph(arr,check=True)
             print("constructed {}".format(G.name()))
                 
-    print("terminated tests")
+    print("tests terminated")
             
 test_all()
 #test_random_array(60,[3,4,5,6],30)

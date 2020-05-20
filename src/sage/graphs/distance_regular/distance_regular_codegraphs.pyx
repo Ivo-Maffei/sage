@@ -6,16 +6,31 @@ from sage.matrix.constructor import Matrix
 from sage.modules.free_module_element import vector
 from sage.graphs.graph import Graph
 
-def coset_graph( const int q, C_basis, U_basis = None, n = None ):
+from cysignals.signals cimport sig_check
+
+def coset_graph( const int q, C_basis, U_basis=None, n=None ):
     r"""
-    computes the coset graph \Gamma(C) where C = span(C_basis)
-    we need U = span(U_basis) to be s.t. U+C = V
-    all vector spaces are over GF(q) and V has dimension n
+    Computes the coset graph $\Gamma(C)$ where $C = \mathrm{Span}(C_basis)$
+    
+    Inputs: q, C_basis, U_basis=None, n=None
+
+    The elements of C_basis are vectors over $(\mathbb F_q)^n$.
+    U_basis must span the complement of $C$
+
+    If n or U_basis are not given, they will be deduced from C_basis.
+    So if n or U_basis are not given, then C_basis should not be empty.
     """
 
     if n == None:
         n = len(C_basis[0])# dim V
     F = GF(q) #base field
+    lambdas = [ x for x in F if x != 0 ]#non-zero elements of F
+
+    def e(const int i):
+        v = [0]*n
+        v[i-1] = 1
+        return vector(F,v,immutable=True)
+    
     V = VectorSpace(F,n)
 
     if U_basis is None:
@@ -25,17 +40,8 @@ def coset_graph( const int q, C_basis, U_basis = None, n = None ):
         U_basis = [ lift(v) for v in Q.basis()]
         
     U = V.span(U_basis)
-        
-
-    lambdas = [ x for x in F if x != 0 ]#non-zero elements of F
-    
-    def e(const int i):
-        v = [0]*n
-        v[i-1] = 1
-        return vector(F,v)
-
     vertices = list(U)
-
+    
     # build our matrix A
     A = U_basis.copy()
     for c in C_basis:
@@ -55,24 +61,24 @@ def coset_graph( const int q, C_basis, U_basis = None, n = None ):
         else:
             a = Ainv * ei
             # get zero vector and sum a[i]u_i to it
-            v = [0]*n
-            v = vector(F,v)
+            v = vector(F,[0]*n)
             for i in range(len(U_basis)):
                 v += a[i]*U_basis[i]
+            v.set_immutable()
             Pei.append(v)
-
+            
     lPei = [ l*u for l in lambdas for u in Pei]
 
     #now we are ready to build all the edges
     edges = []
     for v in vertices:
-        vt = tuple(v)
+        v.set_immutable()
         for u in lPei:
+            sig_check()
             w = v + u
-            edges.append( (vt, tuple(w)) )
+            w.set_immutable()
+            edges.append( (v, w) )
 
     G = Graph(edges, format='list_of_edges')
     return G
-
-
 

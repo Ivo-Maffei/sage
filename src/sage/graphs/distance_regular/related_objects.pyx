@@ -24,12 +24,12 @@ class AssociationScheme:
 
         #check matrix size
         if self._matrix.ncols() != self._nX:
-            print("matrix has wrong size")
+            raise ValueError("matrix has wrong size")
         
         #check R0
         for i in range(self._nX):
             if self._matrix[i][i] != 0:
-                print("identity is not R_0")
+                raise ValueError("identity is not R_0")
             
         
         #check symmetries
@@ -55,8 +55,7 @@ class AssociationScheme:
                             if (x,z) in Ri and (z,y) in Rj:
                                 count += 1
                         if pijk != count:
-                            print("failed p{}{}{} (={}) with pair ({},{})".format(i,j,k,pijk,x,y))
-                            print("{}".format(self._matrix))
+                            raise ValueError("failed p{}{}{} (={}) with pair ({},{})".format(i,j,k,pijk,x,y))
                             return False
         return True
         
@@ -78,8 +77,7 @@ class AssociationScheme:
         self._P = [ [ [None for k in range(r1) ] for j in range(r1)] for i in range(r1)]
 
         if check:
-            if not self._is_association_scheme():
-                raise ValueError("input given is not an association scheme")
+            self._is_association_scheme()
             
 
     def ground_set(self):
@@ -137,7 +135,6 @@ class AssociationScheme:
         
 
     def compute_intersection_numbers(self):
-        if self._P is not None: return
         r1 = self._r+1
         for i in range(r1):
             for j in range(r1):
@@ -190,10 +187,11 @@ def cyclotomic_scheme(const int q,const int r,check=True):
 
     return AssociationScheme(X,relations,check=check)
 
-def pseudocyclic_association_scheme(const int n, const int r, existence=False, check=True):
+def distance_regular_association_scheme(const int n, const int r, existence=False, check=True):
     r"""
-    build a psuedocyclic association scheme of size n with r classes
-    we also require that 
+    Returns an r-class  distance regular association scheme
+
+    We say that an association scheme is distance regular if it is pseudocyclic and
     $p_{i+l mod r, j+l mod r}^{k+l mod r} = p_{i,j}^k for any i,j,k,l \in \{1,...,r\}$
     """
     def result(scheme):
@@ -211,7 +209,9 @@ def pseudocyclic_association_scheme(const int n, const int r, existence=False, c
     raise RuntimeError("Sage can't build a pseudocyclic association scheme with parameters ({},{})".format(n,r))
 
 def generalised_quadrangle_with_spread(const int s, const int t, existence=False, check=True):
-
+    r"""
+    Returns a pair (GQ,S) s.t. GQ is a generalised quadrangle of order (s,t) and S is a spread of GQ
+    """
     if s < 1 or t < 1:
         if existence: return False
         raise RuntimeError("No GQ of order ({},{}) exists".format(s,t))
@@ -233,6 +233,10 @@ def generalised_quadrangle_with_spread(const int s, const int t, existence=False
     raise RuntimeError("Sage can't build a GQ of order ({},{}) with a spread".format(s,t))
 
 def is_GQ_with_spread(GQ,S,const int s, const int t):
+    r"""
+    Checks if GQ is a generalised quadrangle of order (s,t) and
+    checks that S is a spred of GQ
+    """
     res = GQ.is_generalised_quadrangle(parameters=True)
     if res is False or res[0] != s or res[1] != t:
         return False
@@ -250,6 +254,9 @@ def is_GQ_with_spread(GQ,S,const int s, const int t):
     return True
         
 def dual_GQ_ovoid(GQ,O):
+    r"""
+    Computes the dual of GQ and returns the image of O under the dual map
+    """
     #we compute the dual of GQ and of O
 
     #GQ.ground_set()[i] becomes newBlocks[i]
@@ -268,8 +275,8 @@ def dual_GQ_ovoid(GQ,O):
     
 def generalised_quadrangle_hermitian(const int q):
     r"""
-    Another way of making H(3,q^2)
-    GQ of order (q^2,q)
+    Construct the generalised quadrangle H(3,q^2) with an ovoid
+    The GQ has order (q^2,q)
     """
 
     GU = libgap.GU(4,q)
