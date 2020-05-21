@@ -110,11 +110,11 @@ def dual_polar_orthogonal_params():
 def dual_polar_orthogonal_array(e,d,q):
     return intersection_array_from_classical_parameters(d,q,0,q^(1-e))
 
-def doubled_odd_params():
-    for n in range(8):#values >= 8 is_distance_regular gives an error
+def double_odd_params():
+    for n in range(1,10):#values >= 8 is_distance_regular gives an error
             yield n
 
-def doubled_odd_array(x):
+def double_odd_array(x):
     k = x+1
     d = 2*x + 1
 
@@ -123,7 +123,7 @@ def doubled_odd_array(x):
 
     return bs+cs[1:]
 
-def doubled_odd_edges(x):
+def double_odd_edges(x):
     return binomial(2*x+1,x)*(x+1)
 
 def bilinear_form_params():
@@ -170,14 +170,14 @@ def hermitian_form_edges(n,q):
     k = q_binomial(n,1,-r)*(-(-r)**n-1)
     return nV*k // 2
 
-def halved_cube_params():
+def half_cube_params():
     for  n in range(6,50):#smaller n has diameter < 3
         yield n
 
-def halved_cube_array(n):
+def half_cube_array(n):
     return intersection_array_from_classical_parameters(n//2,1,2,2*((n+1)//2)-1)
 
-def halved_cube_edges(n):
+def half_cube_edges(n):
     nV = 2**(n-1)
     k = n-1 + binomial(n-1,2)
     return nV*k//2
@@ -196,18 +196,18 @@ def Grassmann_edges(q,n,e):
     k = q_binomial(e,1,q)*(q_binomial(n-e+1,1,q) -1)
     return nV*k//2
 
-def doubled_Grassmann_params():
+def double_Grassmann_params():
     for e in range(1,10):#diameter is 2e+1
         for q in prime_powers[:5]:#to big otherwise
             yield (q,e)
 
-def doubled_Grassmann_array(q,e):
+def double_Grassmann_array(q,e):
     d = 2*e +1
     cs = [ q_binomial((i+1)//2,1,q) for i in range(d+1)]
     bs = [ q_binomial(e+1,1,q)-cs[i] for i in range(d)]
     return bs+cs[1:]
 
-def doubled_Grassmann_edges(q,e):
+def double_Grassmann_edges(q,e):
     nV = 2*q_binomial(2*e+1,e,q)
     k= q_binomial(e+1,1,q)
     return k*nV//2
@@ -491,33 +491,33 @@ def extended_Kasami_edges(s,t):
         
     
 _tests_list = [
-    #("sporadic graphs",test_sporadic),
+    ("sporadic graphs",test_sporadic),
     #("orthogonal dual polar",dual_polar_orthogonal,dual_polar_orthogonal_params,dual_polar_orthogonal_array),
-    #("doubled odd", doubled_odd_graph, doubled_odd_params, doubled_odd_array, doubled_odd_edges),
-    #("bilinear form graph",bilinear_form_graph,bilinear_form_params,bilinear_form_array,bilinear_form_edges),
-    #("alternating form graph",alternating_form_graph,alternating_form_params,alternating_form_array,alternating_form_edges), #to test
-    #("hermitian form graph",hermitian_form_graph,hermitian_form_params,hermitian_form_array,hermitian_form_edges),
-    #("halved cube",halved_cube,halved_cube_params,halved_cube_array,halved_cube_edges),
-    #("Grassmann",Grassmann_graph,Grassmann_params,Grassmann_array,Grassmann_edges),
-    #("doubled Grassmann",doubled_Grassmann_graph,doubled_Grassmann_params,doubled_Grassmann_array,doubled_Grassmann_edges),
-    #("hermitian cover",hermitian_cover,hermitian_cover_params,hermitian_cover_array,hermitian_cover_edges),
-    #("AB graph",AB_graph,AB_params,AB_array,AB_edges),
-    #("Preparata graph", Preparata_graph,Preparata_params,Preparata_array,Preparata_edges),
-    #("Brouwer Pasechnik graph",Brouwer_Pasechnik_graph,Brouwer_Pasechnik_params,Brouwer_Pasechnik_array,Brouwer_Pasechnik_edges),
-    #("Pasechnik graph",Pasechnik_graph,Pasechnik_params,Pasechnik_array,Pasechnik_edges),
+    ("double odd", double_odd_graph, double_odd_params, double_odd_array, double_odd_edges),
+    ("bilinear form graph",bilinear_form_graph,bilinear_form_params,bilinear_form_array,bilinear_form_edges),
+    ("alternating form graph",alternating_form_graph,alternating_form_params,alternating_form_array,alternating_form_edges), #to test
+    ("hermitian form graph",hermitian_form_graph,hermitian_form_params,hermitian_form_array,hermitian_form_edges),
+    ("half cube",half_cube,half_cube_params,half_cube_array,half_cube_edges),
+    ("Grassmann",Grassmann_graph,Grassmann_params,Grassmann_array,Grassmann_edges),
+    ("double Grassmann",double_Grassmann_graph,double_Grassmann_params,double_Grassmann_array,double_Grassmann_edges),
+    ("hermitian cover",hermitian_cover,hermitian_cover_params,hermitian_cover_array,hermitian_cover_edges),
+    ("AB graph",AB_graph,AB_params,AB_array,AB_edges),
+    ("Preparata graph", Preparata_graph,Preparata_params,Preparata_array,Preparata_edges),
+    ("Brouwer Pasechnik graph",Brouwer_Pasechnik_graph,Brouwer_Pasechnik_params,Brouwer_Pasechnik_array,Brouwer_Pasechnik_edges),
+    ("Pasechnik graph",Pasechnik_graph,Pasechnik_params,Pasechnik_array,Pasechnik_edges),
     #("Association scheme graph",graph_from_association_scheme, association_scheme_params ,association_scheme_array, association_scheme_edges), #test primes > 100 and error in drg for (13,2)
-    #("GQ graphs",graph_from_GQ_spread, GQ_graph_params,GQ_graph_array,GQ_graph_edges),
-    #("Symplectic cover", symplectic_cover, gen_symplectic_params, gen_symplectic_array, gen_symplectic_edges),
+    ("GQ graphs",graph_from_GQ_spread, GQ_graph_params,GQ_graph_array,GQ_graph_edges),
+    ("Symplectic cover", symplectic_cover, gen_symplectic_params, gen_symplectic_array, gen_symplectic_edges),
     #("BIBD graph", graph_from_BIBD, BIBD_graph_params, BIBD_graph_array, BIBD_graph_edges), #to test big ones
-    #("Denniston graph", graph_from_Denniston_arc, Denniston_arc_params, Denniston_arc_array, Denniston_arc_edges),
-    #("unitary nonisotropic graph",unitary_nonisotropic_graph, unitary_graph_params, unitary_graph_array),
-    #("Taylor graph",Taylor_graph, Taylor_graph_params, Taylor_graph_array, Taylor_graph_edges),
+    ("Denniston graph", graph_from_Denniston_arc, Denniston_arc_params, Denniston_arc_array, Denniston_arc_edges),
+    ("unitary nonisotropic graph",unitary_nonisotropic_graph, unitary_graph_params, unitary_graph_array),
+    ("Taylor graph",Taylor_graph, Taylor_graph_params, Taylor_graph_array, Taylor_graph_edges),
     #("TD graph",graph_from_TD,TD_graph_params,TD_graph_array,TD_graph_edges),
-    #("Generalised dodecagon",generalised_dodecagon, gen_dodec_params,gen_dodec_array),
-    #("Generalised octagon",generalised_octagon, gen_octagon_params,gen_octagon_array),
-    #("Generalised hexagon", generalised_hexagon, gen_hexagon_params, gen_hexagon_array),
+    ("Generalised dodecagon",generalised_dodecagon, gen_dodec_params,gen_dodec_array),
+    ("Generalised octagon",generalised_octagon, gen_octagon_params,gen_octagon_array),
+    ("Generalised hexagon", generalised_hexagon, gen_hexagon_params, gen_hexagon_array),
     #("Kasami graph",Kasami_graph,Kasami_params,Kasami_array,Kasami_edges),
-    ("Extended Kasami graph",extended_Kasami_graph,Kasami_params,extended_Kasami_array,extended_Kasami_edges),
+    #("Extended Kasami graph",extended_Kasami_graph,Kasami_params,extended_Kasami_array,extended_Kasami_edges),
 ]
 
 def test_all(fromArray=False):

@@ -551,9 +551,7 @@ def LintSchrijver_graph():
 
     vertices = set()
     for v in G.vertices():
-        v = vector(GF(3), v)
         i = v.dot_product(one)
-        v = tuple(v)
         if i in {1,2}:
             vertices.add(v)
 

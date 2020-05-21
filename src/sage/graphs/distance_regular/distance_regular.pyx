@@ -165,7 +165,7 @@ def dual_polar_orthogonal(const int e, const int  d, const int q):
     return G
 
 
-def doubled_odd_graph( const int n ):
+def double_odd_graph( const int n ):
     r"""
     Double odd graph on 2*n+1 points
 
@@ -2163,7 +2163,7 @@ def is_near_polygon(list arr):
 
     if ( n==2*d and d%2 == 1 and k -1 == (d-1)//2 and
          cs == [(i+1)//2 for i in range(1,d+1)] ):
-        #doubled odd
+        #double odd
         e = (d-1)//2
         return (4,e)
     
@@ -2292,7 +2292,7 @@ def fold_graph( G, d=None):
 
 def bipartite_double_graph(G):
     r"""
-    This function return the biparite doubled graph of G
+    This function return the biparite double graph of G
     the vertices of double graph are 2 copies of V
     the edges are (u_1,v_2), (u_2,v_1) for any (u,v) in E
     """
@@ -2365,7 +2365,7 @@ def near_polygon_graph(const int g, t):
     if g == 3:
         return double_Grassmann_graph(*t)
     if g == 4:
-        return doubled_odd_graph(t)
+        return double_odd_graph(t)
     if g == 5:
         return GraphGenerators.FoldedCubeGraph(t)
 
