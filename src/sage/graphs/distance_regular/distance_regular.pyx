@@ -2234,7 +2234,7 @@ def halve_graph(G) :
     H.name("Halved %s" % G.name() )
     return H
 
-def fold_graph( G, d=None,duplicate=True ):
+def fold_graph( G, d=None):
     r"""
     Assume G is antipodal and computes its folded graph:
 
@@ -2251,25 +2251,42 @@ def fold_graph( G, d=None,duplicate=True ):
     if d is None:
         d= G.diameter()
 
-    if duplicate:
-        H = G.copy()
-    else:
-        H = G
-
     #go through vertices
     #if d(u,v) == d, then they are in a clique
-    #merge clique into 1 vertex
     vertices = set(G.vertices(sort=False))
+    cliques = []
     while vertices:
         v = vertices.pop()
         clique = [v]
         for u in vertices:
             if distance[v][u] == d:
                 clique.append(u)
-        #now we have a clique
-        H.merge_vertices(clique)
+
         vertices = vertices.difference(clique)
-        
+        #now we have a clique
+        cliques.append(frozenset(clique))
+
+    N = len(cliques)
+    edges = []
+    for i in range(N):
+        cl1 = cliques[i]
+        for j in range(i+1,N):
+            cl2 = cliques[j]
+            
+            #look for edge connecting cliques
+            edge=False
+            for u in cl1:
+                for v in cl2:
+                    if G.has_edge((u,v)):
+                        edge=True
+                        break
+                if edge:
+                    break
+
+            if edge:
+                edges.append((i,j))
+            
+    H = Graph(edges,format="list_of_edges")
     H.name("Fold of %s" % (G.name()) )
     return H
 
@@ -2321,9 +2338,9 @@ def pseudo_partition_graph(m,a):
     if a == 0:
         return GraphGenerators.FoldedCubeGraph(m)
     elif a == 1:
-        return fold_graph(GraphGenerators.JohnsonGraph(2*m,m),d=m,duplicate=False)
+        return fold_graph(GraphGenerators.JohnsonGraph(2*m,m),d=m)
     elif a == 2:
-        return fold_graph(half_cube(2*m),d=m,duplicate=False)
+        return fold_graph(half_cube(2*m),d=m)
 
     raise ValueError("no known graph exists")
 
