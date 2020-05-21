@@ -19,7 +19,7 @@ This module implements:
 - `V(m,t)` vectors:
 {LIST_OF_VMT_VECTORS}
 
-- :func:`RBIBD(120,8,1) <RBIBD_120_8_1>`
+- :func:`RBIBCD(120,8,1) <RBIBD_120_8_1>`
 
 - `(v,k,\lambda)`-BIBD:
 {LIST_OF_BIBD}
@@ -4586,7 +4586,7 @@ BIBD_constructions = {
     (136,6,1): BIBD_136_6_1,
     (141,6,1): BIBD_141_6_1,
     (171,6,1): BIBD_171_6_1,
-    (176,50,14): HigmanSimsDesign,
+    (176,50,14): lambda : HigmanSimsDesign().blocks(),
     (196,6,1): BIBD_196_6_1,
     (201,6,1): BIBD_201_6_1,
 }
