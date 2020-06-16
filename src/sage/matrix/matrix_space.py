@@ -1460,15 +1460,26 @@ class MatrixSpace(UniqueRepresentation, Parent):
                 for iv in sage.combinat.integer_vector.IntegerVectors(weight, number_of_entries, max_part=(order-1)):
                     yield self(entries=[base_elements[i] for i in iv])
                 
-    def symmetric_generator(self, f, g = None ):
+    def symmetric_matrices(self, f, g=None ):
         r"""
         Return a generator of the matrices in this matrix space that satisfy:
-        A[j,i] = f(A[i,j]) for i != j
-        A[i,i] = g(A[i,i])
+        `A[j,i] = f(A[i,j])` for `i != j`
+        `A[i,i] = g(A[i,i])`
         
-        The construction is very much like the one in the __iter__ method
+        If the matrix space doesn't contains square matrices, then a
+        `ValueError` is raised.
+
+        INPUT:
+
+        - `f` -- function
+
+        - `g` -- (optional) funcition; if it is None, then we assume `g=f`,
+          default value: `None`.
+
+        EXAMPLES:
+
         
-        we MUST have self.__nrows == self.__ncols
+        TESTS::
         
         """
         if self.__nrows != self.__ncols:
@@ -1534,7 +1545,7 @@ class MatrixSpace(UniqueRepresentation, Parent):
                 base_elements.append( next(base_iter) )
         else:
             #In the finite case, we do a similar thing except that
-            #Moreover, instead of checking if the diagonal is correct after creating the vector
+            #instead of checking if the diagonal is correct after creating the vector
             #we can select all possible diagonal elements a priori
             order = base_ring.order()
             base_elements = list(base_ring)
