@@ -484,8 +484,8 @@ def is_difference_matrix(M,G,k,lmbda=1,verbose=False):
     Test if `M` is a `(G,k,\lambda)`-difference matrix.
 
     A matrix `M` is a `(G,k,\lambda)`-difference matrix if its entries are
-    element of `G`, and if for any two rows `R,R'` of `M` and `x\in G` there
-    are exactly `\lambda` values `i` such that `R_i-R'_i=x`.
+    element of `G`, and if for any two columns `C,C'` of `M` and `x\in G` there
+    are exactly `\lambda` values `i` such that `C_i-C'_i=x`.
 
     INPUT:
 

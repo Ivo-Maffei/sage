@@ -136,8 +136,8 @@ def difference_matrix(g, k, lmbda=1, existence=False, check=True):
 
     A matrix `M` is a `(g,k,\lambda)`-difference matrix if it has size `\lambda
     g\times k`, its entries belong to the group `G` of cardinality `g`, and
-    for any two rows `R,R'` of `M` and `x\in G` there are exactly `\lambda`
-    values `i` such that `R_i-R'_i=x`.
+    for any two columns `C,C'` of `M` and `x\in G` there are exactly `\lambda`
+    values `i` such that `C_i-C'_i=x`.
 
     INPUT:
 
