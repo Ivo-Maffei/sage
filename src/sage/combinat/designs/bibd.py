@@ -56,7 +56,6 @@ from __future__ import absolute_import
 from sage.categories.sets_cat import EmptySetError
 from sage.misc.unknown import Unknown
 from .design_catalog import transversal_design
-from .block_design import BlockDesign
 from sage.arith.all import binomial, is_prime_power
 from .group_divisible_designs import GroupDivisibleDesign
 from .designs_pyx import is_pairwise_balanced_design
@@ -563,7 +562,8 @@ def BIBD_from_difference_family(G, D, lambd=None, check=True):
         GG = Gset.copy()
         while GG:
             g = GG.pop()
-            if S: GG.difference_update(mul(s,g) for s in S)
+            if S:
+                GG.difference_update(mul(s,g) for s in S)
             bibd.append([p_to_i[mul(i,g)] for i in b])
 
     if check:
@@ -1027,17 +1027,28 @@ def _get_r_s_t_u(v):
     s = r//150
     x = r%150
 
-    if   x == 0:   t,u = 30*s-5,  25
-    elif x == 1:   t,u = 30*s-5,  26
-    elif x <= 21:  t,u = 30*s+1,  x-5
-    elif x == 25:  t,u = 30*s+5,  0
-    elif x == 26:  t,u = 30*s+5,  1
-    elif x == 30:  t,u = 30*s+5,  5
-    elif x <= 51:  t,u = 30*s+5,  x-25
-    elif x <= 66:  t,u = 30*s+11, x-55
-    elif x <= 96:  t,u = 30*s+11, x-55
-    elif x <= 121: t,u = 30*s+11, x-55
-    elif x <= 146: t,u = 30*s+25, x-125
+    if   x == 0:
+        t, u = 30*s-5, 25
+    elif x == 1:
+        t, u = 30*s-5, 26
+    elif x <= 21:
+        t, u = 30*s+1, x-5
+    elif x == 25:
+        t, u = 30*s+5, 0
+    elif x == 26:
+        t, u = 30*s+5, 1
+    elif x == 30:
+        t, u = 30*s+5, 5
+    elif x <= 51:
+        t, u = 30*s+5, x-25
+    elif x <= 66:
+        t, u = 30*s+11, x-55
+    elif x <= 96:
+        t, u = 30*s+11, x-55
+    elif x <= 121:
+        t, u = 30*s+11, x-55
+    elif x <= 146:
+        t, u = 30*s+25, x-125
 
     return r,s,t,u
 
